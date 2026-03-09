@@ -2,44 +2,16 @@ from flask import Flask, render_template, jsonify, request, session
 import random
 import json
 
-app = Flask(__name__)
+app = Flask(__name__, template_folder='.')
 app.secret_key = 'retro_arcade_secret_2024'
 
 # ─── Word list for Hangman ───────────────────────────────────────────────────
 HANGMAN_WORDS = [
-    # Programming/retro/arcade words
     'python', 'javascript', 'arcade', 'pixel', 'retro', 'galaxy',
     'quantum', 'nebula', 'crystal', 'phantom', 'vortex', 'eclipse',
     'dragon', 'wizard', 'castle', 'knight', 'shield', 'sword',
     'treasure', 'dungeon', 'monster', 'potion', 'magic', 'spell',
-    'portal', 'quest', 'legend', 'hero', 'villain', 'adventure',
-    # Popular Bollywood movies (list cleaned, consistent, no duplicates, formatted as titles)
-    "Dhoom", "Don", "Raazi", "Queen", "Rocky", "Baazigar", "Talvar",
-    "Haider", "Barfi", "Sultan", "Kick", "War", "Jawan", "Raees",
-    "Hero", "Krrish", "Lagaan", "Swades", "Border", "Rustom", "Fan",
-    "Ghajini", "Kahaani", "Drishyam", "Sholay", "Don 2", "Dangal",
-    "Singham", "Padman", "Airlift", "PK", "Chak De India", "Devdas",
-    "Dil Se", "Karan Arjun", "Main Hoon Na", "Om Shanti Om",
-    "Kal Ho Naa Ho", "Dil Chahta Hai", "Zindagi Na Milegi Dobara",
-    "Student of the Year", "Kabir Singh", "Ram Leela",
-    "Bajirao Mastani", "Padmaavat", "Black", "Pink", "Piku", "Tamasha",
-    "Rockstar", "Highway", "October", "Badhaai Ho", "Article 15",
-    "Andhadhun", "Badlapur", "NH10", "Lootera", "Kai Po Che",
-    "Parmanu", "Kesari", "Holiday", "Baby", "Special 26",
-    "Mission Mangal", "URI", "Shershaah", "Chhichhore",
-    "Dil Dhadakne Do", "Dear Zindagi", "Kapoor and Sons",
-    "Wake Up Sid", "Love Aaj Kal", "Ajab Prem Ki Ghazab Kahani",
-    "Housefull", "Golmaal", "Hungama", "Hera Pheri", "Phir Hera Pheri",
-    "Bhool Bhulaiyaa", "Bhool Bhulaiyaa 2", "Khiladi", "Mohra",
-    "Soldier", "Judwaa", "Judwaa 2", "Coolie No 1", "Partner",
-    "Welcome", "No Entry", "Ready", "Bodyguard", "Dabangg", "Dabangg 2",
-    "Tiger Zinda Hai", "Ek Tha Tiger", "Race", "Race 2", "Race 3",
-    "Agneepath", "Kaho Naa Pyaar Hai", "Fiza", "Koi Mil Gaya",
-    "Jodhaa Akbar", "Guzaarish", "Bang Bang", "Tevar", "Raajneeti",
-    "Fashion", "Page 3", "Corporate", "Chandni", "Lamhe", "Silsila",
-    "Trishul", "Deewar", "Amar Akbar Anthony", "Coolie", "Shakti",
-    "Namak Halaal", "Chupke Chupke", "Gol Maal", "Anand", "Aradhana",
-    "Guide", "Mughal E Azam", "Mother India"
+    'portal', 'quest', 'legend', 'hero', 'villain', 'adventure'
 ]
 
 # ─── Solitaire deck helper ────────────────────────────────────────────────────
