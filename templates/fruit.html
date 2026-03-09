@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FRUIT SLASHER · RETRO ARCADE</title>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323:wght@400&display=swap" rel="stylesheet">
+<style>
+  :root { --neon-orange: #ff6600; --neon-cyan: #00ffff; --neon-yellow: #ffff00; --dark: #0a0a0f; }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: var(--dark); font-family: 'Press Start 2P', monospace; min-height: 100vh; overflow: hidden; }
+  .scanlines {
+    position: fixed; inset: 0;
+    background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.15) 2px, rgba(0,0,0,0.15) 4px);
+    pointer-events: none; z-index: 999;
+  }
+  .back-btn {
+    position: fixed; top: 15px; left: 15px; z-index: 200;
+    font-family: 'Press Start 2P', monospace; font-size: 9px; color: var(--neon-cyan);
+    text-decoration: none; padding: 8px 12px; border: 1px solid var(--neon-cyan);
+    background: rgba(0,0,0,0.7); transition: all 0.2s;
+  }
+  .back-btn:hover { background: var(--neon-cyan); color: #000; }
+
+  #gameCanvas {
+    display: block; width: 100vw; height: 100vh;
+    cursor: crosshair; background: #0a0a0f;
+    touch-action: none;
+  }
+
+  .hud {
+    position: fixed; top: 15px; right: 15px; z-index: 100;
+    text-align: right; pointer-events: none;
+  }
+  .score-display {
+    font-family: 'VT323', monospace; font-size: 40px;
+    color: var(--neon-yellow); text-shadow: 0 0 15px var(--neon-yellow);
+  }
+  .lives-display { font-size: 20px; margin-top: 5px; }
+  .level-display {
+    font-family: 'VT323', monospace; font-size: 24px;
+    color: var(--neon-orange); margin-top: 5px;
+  }
+  .streak-display {
+    font-family: 'VT323', monospace; font-size: 22px;
+    color: #ff6ec7;
+  }
+
+  .overlay {
+    position: fixed; inset: 0; z-index: 300;
+    background: rgba(0,0,0,0.88);
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 22px;
+    font-family: 'Press Start 2P', monospace;
+  }
+  .overlay.hidden { display: none; }
+  .overlay-title { font-size: clamp(20px,4vw,38px); color: var(--neon-orange);
+    text-shadow: 0 0 30px var(--neon-orange); text-align: center; }
+  .overlay-sub { font-family: 'VT323', monospace; font-size: 28px; color: rgba(255,255,255,0.6); text-align: center; }
+  .overlay-score { font-family: 'VT323', monospace; font-size: 40px; color: var(--neon-yellow); }
+  .play-btn {
+    font-family: 'Press Start 2P', monospace; font-size: 14px;
+    padding: 16px 32px; background: transparent;
+    border: 2px solid var(--neon-orange); color: var(--neon-orange);
+    cursor: pointer; transition: all 0.2s;
+    text-shadow: 0 0 10px var(--neon-orange); box-shadow: 0 0 15px rgba(255,102,0,0.2);
+  }
+  .play-btn:hover { background: var(--neon-orange); color: #000; box-shadow: 0 0 40px rgba(255,102,0,0.5); }
+  .how-to { font-family: 'VT323', monospace; font-size: 20px; color: rgba(255,255,255,0.4); text-align: center; max-width: 400px; }
+</style>
+</head>
+<body>
+<div class="scanlines"></div>
+<a href="/" class="back-btn">◀ BACK</a>
+
+<canvas id="gameCanvas"></canvas>
+
+<div class="hud">
+  <div class="score-display">SCORE: <span id="scoreEl">0</span></div>
+  <div class="lives-display" id="livesEl">❤️❤️❤️</div>
+  <div class="level-display">LVL: <span id="levelEl">1</span></div>
+  <div class="streak-display" id="streakEl"></div>
+</div>
+
+<div class="overlay" id="startOverlay">
+  <div class="overlay-title">🍉 FRUIT<br>SLASHER</div>
+  <div class="overlay-sub">Slice fruits · Dodge bombs!</div>
+  <div class="how-to">Swipe/drag across fruits to slice them.<br>Avoid slicing the 💣 BOMB!</div>
+  <button class="play-btn" onclick="startGame()">▶ START SLASHING</button>
+</div>
+
+<div class="overlay hidden" id="gameOverOverlay">
+  <div class="overlay-title">💣 GAME<br>OVER</div>
+  <div class="overlay-score">SCORE: <span id="finalScore">0</span></div>
+  <div class="overlay-sub">HIGH SCORE: <span id="highScore">0</span></div>
+  <button class="play-btn" onclick="startGame()">▶ PLAY AGAIN</button>
+  <a href="/" style="font-family:'VT323',monospace;font-size:20px;color:rgba(255,255,255,0.4);text-decoration:none">MAIN MENU</a>
+</div>
+
+<script>
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+
+function resize() {
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+}
+resize();
+window.addEventListener('resize', resize);
+
+const FRUITS = ['🍉','🍊','🍋','🍎','🍇','🍓','🍑','🥝','🍍'];
+const BOMB = '💣';
+
+let score = 0, lives = 3, level = 1, streak = 0, highScore = 0;
+let items = [], slices = [], particles = [], splats = [];
+let running = false;
+let spawnRate = 1500, lastSpawn = 0;
+let gameLoop = null;
+
+// Mouse/touch trail
+let trail = [];
+let mousePos = {x:-1, y:-1};
+let prevMouse = {x:-1, y:-1};
+let isSlicing = false;
+
+function startGame() {
+  score = 0; lives = 3; level = 1; streak = 0;
+  items = []; slices = []; particles = []; splats = []; trail = [];
+  spawnRate = 1500; lastSpawn = 0;
+  running = true;
+  document.getElementById('startOverlay').classList.add('hidden');
+  document.getElementById('gameOverOverlay').classList.add('hidden');
+  updateHUD();
+  if (gameLoop) cancelAnimationFrame(gameLoop);
+  lastTime = performance.now();
+  gameLoop = requestAnimationFrame(update);
+}
+
+function updateHUD() {
+  document.getElementById('scoreEl').textContent = score;
+  document.getElementById('livesEl').textContent = '❤️'.repeat(Math.max(0, lives));
+  document.getElementById('levelEl').textContent = level;
+  document.getElementById('streakEl').textContent = streak >= 3 ? `🔥 STREAK x${streak}` : '';
+}
+
+function spawnItem() {
+  const isBomb = Math.random() < 0.15;
+  const emoji = isBomb ? BOMB : FRUITS[Math.floor(Math.random() * FRUITS.length)];
+  const x = 80 + Math.random() * (canvas.width - 160);
+  const vy = -(14 + Math.random() * 7 + level * 0.5);
+  const vx = (Math.random() - 0.5) * 5;
+  items.push({ emoji, x, y: canvas.height + 60, vx, vy, rot: Math.random()*360, rvel:(Math.random()-0.5)*5, size: 52+Math.random()*16, isBomb, sliced: false, alpha: 1 });
+}
+
+function checkSlice(item) {
+  if (item.sliced) return false;
+  const r = item.size * 0.5;
+  // Check if any segment of trail intersects the item
+  for (let i = 1; i < trail.length; i++) {
+    const ax = trail[i-1].x, ay = trail[i-1].y;
+    const bx = trail[i].x, by = trail[i].y;
+    // Distance from item center to segment
+    const dx = bx - ax, dy = by - ay;
+    const len2 = dx*dx + dy*dy;
+    if (len2 === 0) continue;
+    const t = Math.max(0, Math.min(1, ((item.x-ax)*dx + (item.y-ay)*dy) / len2));
+    const px = ax + t*dx - item.x;
+    const py = ay + t*dy - item.y;
+    if (px*px + py*py < r*r) return true;
+  }
+  return false;
+}
+
+function createParticles(x, y, color) {
+  for (let i = 0; i < 12; i++) {
+    const angle = Math.random() * Math.PI * 2;
+    const speed = 3 + Math.random() * 8;
+    particles.push({ x, y, vx: Math.cos(angle)*speed, vy: Math.sin(angle)*speed, alpha: 1, color, size: 3+Math.random()*5 });
+  }
+}
+
+function createSplat(x, y, emoji) {
+  splats.push({ x, y, emoji, alpha: 1, scale: 0.5, growing: true });
+}
+
+let lastTime = 0;
+function update(ts) {
+  if (!running) return;
+  const dt = Math.min((ts - lastTime) / 16, 3);
+  lastTime = ts;
+
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  // Background grid
+  ctx.strokeStyle = 'rgba(255,102,0,0.04)';
+  ctx.lineWidth = 1;
+  for (let x = 0; x < canvas.width; x+=35) { ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,canvas.height); ctx.stroke(); }
+  for (let y = 0; y < canvas.height; y+=35) { ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(canvas.width,y); ctx.stroke(); }
+
+  // Spawn
+  if (ts - lastSpawn > spawnRate) {
+    spawnItem();
+    lastSpawn = ts;
+    // Level up
+    const newLevel = Math.floor(score / 100) + 1;
+    if (newLevel > level) { level = newLevel; spawnRate = Math.max(500, 1500 - level*120); }
+  }
+
+  // Splats
+  splats.forEach(s => {
+    s.alpha -= 0.015 * dt;
+    if (s.growing) { s.scale += 0.08 * dt; if (s.scale >= 1.2) s.growing = false; }
+    else s.scale -= 0.01 * dt;
+    ctx.globalAlpha = Math.max(0, s.alpha);
+    ctx.font = `${50*s.scale}px Arial`;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(s.emoji, s.x, s.y);
+    ctx.globalAlpha = 1;
+  });
+  splats = splats.filter(s => s.alpha > 0);
+
+  // Items
+  items.forEach(item => {
+    item.x += item.vx * dt;
+    item.y += item.vy * dt;
+    item.vy += 0.4 * dt;
+    item.rot += item.rvel * dt;
+
+    if (!item.sliced && isSlicing && checkSlice(item)) {
+      item.sliced = true;
+      if (item.isBomb) {
+        lives--;
+        streak = 0;
+        createParticles(item.x, item.y, '#ff3333');
+        createSplat(item.x, item.y, '💥');
+        updateHUD();
+        if (lives <= 0) { running = false; endGame(); return; }
+      } else {
+        const bonus = streak >= 5 ? 3 : streak >= 3 ? 2 : 1;
+        score += 10 * bonus;
+        streak++;
+        createParticles(item.x, item.y, '#ff6600');
+        createSplat(item.x, item.y, item.emoji);
+        slices.push({ x: item.x, y: item.y, text: streak >= 3 ? `x${bonus} COMBO!` : '+10', alpha: 1.2, color: bonus > 1 ? '#ffff00' : '#ffffff' });
+        updateHUD();
+      }
+    }
+
+    // Miss
+    if (!item.sliced && item.y > canvas.height + 100 && !item.isBomb) {
+      item.sliced = true; // prevent double penalty
+      lives--;
+      streak = 0;
+      updateHUD();
+      if (lives <= 0) { running = false; endGame(); return; }
+    }
+
+    if (item.sliced) item.alpha -= 0.04 * dt;
+
+    ctx.save();
+    ctx.translate(item.x, item.y);
+    ctx.rotate(item.rot * Math.PI / 180);
+    ctx.globalAlpha = Math.max(0, item.alpha);
+    if (item.isBomb && !item.sliced) {
+      ctx.shadowColor = '#ff3333'; ctx.shadowBlur = 15;
+    }
+    ctx.font = `${item.size}px Arial`;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(item.emoji, 0, 0);
+    ctx.shadowBlur = 0;
+    ctx.restore();
+    ctx.globalAlpha = 1;
+  });
+  items = items.filter(i => i.alpha > 0 && i.y < canvas.height + 150);
+
+  // Particles
+  particles.forEach(p => {
+    p.x += p.vx * dt; p.y += p.vy * dt;
+    p.vy += 0.2 * dt; p.alpha -= 0.025 * dt;
+    ctx.globalAlpha = Math.max(0, p.alpha);
+    ctx.fillStyle = p.color;
+    ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, Math.PI*2); ctx.fill();
+  });
+  particles = particles.filter(p => p.alpha > 0);
+  ctx.globalAlpha = 1;
+
+  // Slice text
+  slices.forEach(s => {
+    s.y = (s.y || 0) - 1.5 * dt; s.alpha -= 0.02 * dt;
+    ctx.globalAlpha = Math.max(0, s.alpha - 0.2);
+    ctx.font = `bold 18px "Press Start 2P"`;
+    ctx.fillStyle = s.color; ctx.textAlign = 'center';
+    ctx.shadowColor = s.color; ctx.shadowBlur = 10;
+    ctx.fillText(s.text, s.x, s.y);
+    ctx.shadowBlur = 0;
+  });
+  slices = slices.filter(s => s.alpha > 0);
+  ctx.globalAlpha = 1;
+
+  // Draw blade trail
+  if (trail.length > 1) {
+    ctx.beginPath();
+    ctx.moveTo(trail[0].x, trail[0].y);
+    for (let i = 1; i < trail.length; i++) {
+      ctx.lineTo(trail[i].x, trail[i].y);
+    }
+    ctx.strokeStyle = 'rgba(255,220,100,0.8)';
+    ctx.lineWidth = 4;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.shadowColor = '#ffcc00';
+    ctx.shadowBlur = 12;
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+
+    // Fade trail
+    trail = trail.slice(-18);
+  }
+
+  gameLoop = requestAnimationFrame(update);
+}
+
+function endGame() {
+  if (score > highScore) highScore = score;
+  document.getElementById('finalScore').textContent = score;
+  document.getElementById('highScore').textContent = highScore;
+  document.getElementById('gameOverOverlay').classList.remove('hidden');
+}
+
+// Input
+function getPos(e) {
+  const r = canvas.getBoundingClientRect();
+  if (e.touches) {
+    return {x: e.touches[0].clientX - r.left, y: e.touches[0].clientY - r.top};
+  }
+  return {x: e.clientX - r.left, y: e.clientY - r.top};
+}
+canvas.addEventListener('mousedown', e => { isSlicing = true; trail = [getPos(e)]; });
+canvas.addEventListener('mousemove', e => { if (isSlicing) trail.push(getPos(e)); });
+canvas.addEventListener('mouseup', () => { isSlicing = false; trail = []; });
+canvas.addEventListener('touchstart', e => { e.preventDefault(); isSlicing = true; trail = [getPos(e)]; }, {passive:false});
+canvas.addEventListener('touchmove', e => { e.preventDefault(); if (isSlicing) trail.push(getPos(e)); }, {passive:false});
+canvas.addEventListener('touchend', () => { isSlicing = false; trail = []; });
+</script>
+</body>
+</html>

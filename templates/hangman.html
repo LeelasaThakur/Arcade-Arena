@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HANGMAN · RETRO ARCADE</title>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323:wght@400&display=swap" rel="stylesheet">
+<style>
+  :root { --neon-pink: #ff00ff; --neon-cyan: #00ffff; --neon-yellow: #ffff00; --dark: #0a0a0f; }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: var(--dark);
+    font-family: 'Press Start 2P', monospace;
+    min-height: 100vh;
+    color: #fff;
+    position: relative;
+    overflow-x: hidden;
+  }
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background-image: linear-gradient(rgba(255,0,255,0.04) 1px, transparent 1px),
+                      linear-gradient(90deg, rgba(255,0,255,0.04) 1px, transparent 1px);
+    background-size: 35px 35px;
+    animation: gs 15s linear infinite;
+  }
+  @keyframes gs { to { background-position: 35px 35px; } }
+  .scanlines {
+    position: fixed; inset: 0;
+    background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.12) 2px, rgba(0,0,0,0.12) 4px);
+    pointer-events: none; z-index: 999;
+  }
+  .back-btn {
+    position: fixed; top: 20px; left: 20px; z-index: 100;
+    font-family: 'Press Start 2P', monospace;
+    font-size: 10px; color: var(--neon-cyan);
+    text-decoration: none; padding: 10px 15px;
+    border: 1px solid var(--neon-cyan);
+    transition: all 0.2s;
+    background: rgba(0,0,0,0.5);
+  }
+  .back-btn:hover { background: var(--neon-cyan); color: #000; }
+
+  .container { max-width: 900px; margin: 0 auto; padding: 20px; position: relative; z-index: 10; }
+  .title {
+    text-align: center; padding: 60px 0 30px;
+    font-size: clamp(20px,4vw,36px);
+    color: var(--neon-pink);
+    text-shadow: 0 0 20px var(--neon-pink), 0 0 40px var(--neon-pink);
+    animation: flicker 4s infinite;
+  }
+  @keyframes flicker { 0%,94%,100%{opacity:1} 95%,97%{opacity:0.3} 96%,98%{opacity:0.8} }
+
+  .game-area {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 30px;
+    margin-top: 20px;
+    align-items: start;
+  }
+  @media(max-width:650px) { .game-area { grid-template-columns: 1fr; } }
+
+  /* Gallows SVG */
+  .gallows-panel {
+    background: rgba(255,0,255,0.05);
+    border: 2px solid rgba(255,0,255,0.3);
+    padding: 20px;
+    text-align: center;
+  }
+  .gallows-svg { width: 100%; max-width: 240px; }
+
+  /* Word panel */
+  .word-panel {
+    background: rgba(255,0,255,0.05);
+    border: 2px solid rgba(255,0,255,0.3);
+    padding: 25px;
+  }
+  .wrong-count {
+    font-family: 'VT323', monospace;
+    font-size: 22px;
+    color: var(--neon-yellow);
+    margin-bottom: 20px;
+    text-align: center;
+  }
+  .word-display {
+    display: flex; gap: 10px; flex-wrap: wrap; justify-content: center;
+    margin: 20px 0;
+  }
+  .letter-box {
+    width: 38px; height: 38px;
+    border-bottom: 3px solid var(--neon-pink);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px; color: var(--neon-cyan);
+    text-shadow: 0 0 10px var(--neon-cyan);
+    transition: all 0.3s;
+  }
+  .letter-box.revealed { animation: reveal 0.3s ease; }
+  @keyframes reveal { 0%{transform:scale(0) rotateY(90deg)} 100%{transform:scale(1) rotateY(0)} }
+
+  .keyboard {
+    display: flex; flex-wrap: wrap; gap: 6px; justify-content: center;
+    margin-top: 20px;
+  }
+  .key-btn {
+    font-family: 'Press Start 2P', monospace;
+    font-size: 10px;
+    padding: 10px 12px;
+    background: rgba(0,0,0,0.6);
+    border: 1px solid var(--neon-cyan);
+    color: var(--neon-cyan);
+    cursor: pointer;
+    transition: all 0.15s;
+    min-width: 42px;
+  }
+  .key-btn:hover:not(:disabled) { background: var(--neon-cyan); color: #000; transform: scale(1.05); }
+  .key-btn:disabled { opacity: 0.2; border-color: #333; color: #333; cursor: default; }
+  .key-btn.wrong { border-color: #ff3333; color: #ff3333; opacity: 0.4; }
+  .key-btn.correct { border-color: var(--neon-green, #00ff41); color: #00ff41; opacity: 0.6; }
+
+  .new-game-btn {
+    font-family: 'Press Start 2P', monospace;
+    font-size: 12px;
+    padding: 14px 24px;
+    background: transparent;
+    border: 2px solid var(--neon-pink);
+    color: var(--neon-pink);
+    cursor: pointer;
+    display: block; margin: 20px auto 0;
+    transition: all 0.2s;
+    text-shadow: 0 0 10px var(--neon-pink);
+    box-shadow: 0 0 15px rgba(255,0,255,0.2);
+  }
+  .new-game-btn:hover { background: var(--neon-pink); color: #000; box-shadow: 0 0 30px rgba(255,0,255,0.5); }
+
+  .status-msg {
+    font-family: 'VT323', monospace;
+    font-size: 30px;
+    text-align: center;
+    margin: 15px 0;
+    min-height: 40px;
+    animation: statusPop 0.5s ease;
+  }
+  @keyframes statusPop { 0%{transform:scale(0.5)} 70%{transform:scale(1.1)} 100%{transform:scale(1)} }
+  .status-msg.win { color: var(--neon-yellow); text-shadow: 0 0 20px var(--neon-yellow); }
+  .status-msg.lose { color: #ff3333; text-shadow: 0 0 20px #ff3333; }
+
+  .guessed-display {
+    font-family: 'VT323', monospace;
+    font-size: 16px;
+    color: rgba(255,255,255,0.4);
+    text-align: center;
+    margin-top: 10px;
+  }
+</style>
+</head>
+<body>
+<div class="scanlines"></div>
+<a href="/" class="back-btn">◀ BACK</a>
+
+<div class="container">
+  <h1 class="title">🪢 HANGMAN</h1>
+  <div class="game-area">
+    <div class="gallows-panel">
+      <svg class="gallows-svg" viewBox="0 0 200 230" xmlns="http://www.w3.org/2000/svg">
+        <!-- Gallows structure -->
+        <line x1="20" y1="220" x2="180" y2="220" stroke="#ff00ff" stroke-width="4" stroke-linecap="square"/>
+        <line x1="60" y1="220" x2="60" y2="20" stroke="#ff00ff" stroke-width="4" stroke-linecap="square"/>
+        <line x1="60" y1="20" x2="140" y2="20" stroke="#ff00ff" stroke-width="4" stroke-linecap="square"/>
+        <line x1="140" y1="20" x2="140" y2="45" stroke="#ff00ff" stroke-width="3"/>
+        <!-- Body parts, initially hidden -->
+        <circle id="head" cx="140" cy="62" r="17" stroke="#00ffff" stroke-width="3" fill="none" style="display:none"/>
+        <line id="body" x1="140" y1="79" x2="140" y2="140" stroke="#00ffff" stroke-width="3" style="display:none"/>
+        <line id="arm-left" x1="140" y1="95" x2="110" y2="120" stroke="#00ffff" stroke-width="3" style="display:none"/>
+        <line id="arm-right" x1="140" y1="95" x2="170" y2="120" stroke="#00ffff" stroke-width="3" style="display:none"/>
+        <line id="leg-left" x1="140" y1="140" x2="110" y2="170" stroke="#00ffff" stroke-width="3" style="display:none"/>
+        <line id="leg-right" x1="140" y1="140" x2="170" y2="170" stroke="#00ffff" stroke-width="3" style="display:none"/>
+      </svg>
+      <div class="wrong-count" id="wrongCount">WRONG: 0 / 6</div>
+    </div>
+
+    <div class="word-panel">
+      <div class="status-msg" id="statusMsg"></div>
+      <div class="word-display" id="wordDisplay"></div>
+      <div class="guessed-display" id="guessedDisplay"></div>
+      <div class="keyboard" id="keyboard"></div>
+      <button class="new-game-btn" onclick="newGame()">▶ NEW GAME</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const BODY_PARTS = ['head','body','arm-left','arm-right','leg-left','leg-right'];
+let gameState = null;
+
+function newGame() {
+  fetch('/api/hangman/new', {method:'POST'})
+    .then(r => r.json())
+    .then(data => {
+      gameState = data;
+      renderGame();
+      document.getElementById('statusMsg').textContent = '';
+      document.getElementById('statusMsg').className = 'status-msg';
+      BODY_PARTS.forEach(p => document.getElementById(p).style.display = 'none');
+    });
+}
+
+function guess(letter) {
+  if (!gameState) return;
+  fetch('/api/hangman/guess', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({letter})
+  }).then(r => r.json()).then(data => {
+    gameState = data;
+    renderGame();
+    // Update gallows
+    for (let i = 0; i < data.wrong; i++) {
+      document.getElementById(BODY_PARTS[i]).style.display = 'block';
+    }
+    document.getElementById('wrongCount').textContent = `WRONG: ${data.wrong} / 6`;
+
+    if (data.won) {
+      const msg = document.getElementById('statusMsg');
+      msg.textContent = '🎉 YOU WIN!';
+      msg.className = 'status-msg win';
+    } else if (data.lost) {
+      const msg = document.getElementById('statusMsg');
+      msg.textContent = `💀 GAME OVER! Word: ${data.word}`;
+      msg.className = 'status-msg lose';
+    }
+  });
+}
+
+function renderGame() {
+  if (!gameState) return;
+  // Word display
+  const wd = document.getElementById('wordDisplay');
+  wd.innerHTML = gameState.display.map(l =>
+    `<div class="letter-box ${l!='_'?'revealed':''}">${l === '_' ? '' : l}</div>`
+  ).join('');
+
+  // Keyboard
+  const kb = document.getElementById('keyboard');
+  const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
+  kb.innerHTML = letters.map(l => {
+    const guessed = gameState.guessed || [];
+    const isGuessed = guessed.includes(l);
+    const isCorrect = isGuessed && gameState.display && gameState.display.includes(l);
+    const isWrong = isGuessed && !isCorrect;
+    const disabled = isGuessed || gameState.won || gameState.lost;
+    return `<button class="key-btn ${isCorrect?'correct':''} ${isWrong?'wrong':''}"
+      onclick="guess('${l}')" ${disabled?'disabled':''}>${l}</button>`;
+  }).join('');
+
+  // Guessed
+  const g = gameState.guessed || [];
+  document.getElementById('guessedDisplay').textContent = g.length ? `Guessed: ${g.join(' ')}` : '';
+}
+
+// Start a game on load
+newGame();
+</script>
+</body>
+</html>

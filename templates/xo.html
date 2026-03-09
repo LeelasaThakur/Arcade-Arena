@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>X & O · RETRO ARCADE</title>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323:wght@400&display=swap" rel="stylesheet">
+<style>
+  :root { --neon-yellow: #ffff00; --neon-cyan: #00ffff; --neon-pink: #ff00ff; --dark: #0a0a0f; }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: var(--dark); font-family: 'Press Start 2P', monospace;
+    min-height: 100vh; color: #fff; overflow-x: hidden; position: relative;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+  }
+  body::before {
+    content: ''; position: fixed; inset: 0;
+    background-image: linear-gradient(rgba(255,255,0,0.04) 1px, transparent 1px),
+                      linear-gradient(90deg, rgba(255,255,0,0.04) 1px, transparent 1px);
+    background-size: 40px 40px; animation: gs 20s linear infinite;
+  }
+  @keyframes gs { to { background-position: 40px 40px; } }
+  .scanlines {
+    position: fixed; inset: 0;
+    background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.12) 2px, rgba(0,0,0,0.12) 4px);
+    pointer-events: none; z-index: 999;
+  }
+  .back-btn {
+    position: fixed; top: 20px; left: 20px; z-index: 100;
+    font-family: 'Press Start 2P', monospace; font-size: 10px; color: var(--neon-cyan);
+    text-decoration: none; padding: 10px 15px; border: 1px solid var(--neon-cyan);
+    background: rgba(0,0,0,0.5); transition: all 0.2s;
+  }
+  .back-btn:hover { background: var(--neon-cyan); color: #000; }
+
+  .content { position: relative; z-index: 10; text-align: center; padding: 20px; }
+  h1 {
+    font-size: clamp(22px,4vw,36px); color: var(--neon-yellow);
+    text-shadow: 0 0 20px var(--neon-yellow); margin-bottom: 15px;
+    animation: flicker 4s infinite;
+  }
+  @keyframes flicker { 0%,94%,100%{opacity:1} 95%,97%{opacity:0.3} 96%,98%{opacity:0.9} }
+
+  .mode-btns {
+    display: flex; gap: 12px; justify-content: center; margin-bottom: 20px; flex-wrap: wrap;
+  }
+  .mode-btn {
+    font-family: 'Press Start 2P', monospace; font-size: 9px;
+    padding: 10px 16px; background: transparent; cursor: pointer; transition: all 0.2s;
+    border: 1px solid rgba(255,255,255,0.3); color: rgba(255,255,255,0.5);
+  }
+  .mode-btn.active { border-color: var(--neon-yellow); color: var(--neon-yellow); box-shadow: 0 0 12px rgba(255,255,0,0.2); }
+  .mode-btn:hover { border-color: var(--neon-yellow); color: var(--neon-yellow); }
+
+  .status-bar {
+    font-family: 'VT323', monospace; font-size: 30px;
+    margin-bottom: 18px; min-height: 40px;
+    color: var(--neon-cyan);
+  }
+
+  .board {
+    display: grid; grid-template-columns: repeat(3, 1fr);
+    gap: 8px; max-width: 360px; margin: 0 auto 20px;
+  }
+
+  .cell {
+    width: 110px; height: 110px;
+    background: rgba(255,255,0,0.04);
+    border: 2px solid rgba(255,255,0,0.25);
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; font-size: 52px;
+    transition: all 0.15s;
+    position: relative; overflow: hidden;
+  }
+  .cell::before {
+    content: ''; position: absolute; inset: 0;
+    background: radial-gradient(circle at center, rgba(255,255,0,0.1), transparent);
+    opacity: 0; transition: opacity 0.2s;
+  }
+  .cell:hover:not(.taken)::before { opacity: 1; }
+  .cell:hover:not(.taken) { border-color: rgba(255,255,0,0.6); }
+  .cell.taken { cursor: default; }
+  .cell.x-cell { border-color: rgba(255,0,255,0.4); }
+  .cell.o-cell { border-color: rgba(0,255,255,0.4); }
+  .cell.winner { animation: winPulse 0.5s ease forwards; }
+  @keyframes winPulse {
+    0%{transform:scale(1)} 30%{transform:scale(1.15)} 60%{transform:scale(0.95)} 100%{transform:scale(1.05)}
+  }
+  .cell.winner.x-cell { background: rgba(255,0,255,0.2); box-shadow: 0 0 20px rgba(255,0,255,0.4); }
+  .cell.winner.o-cell { background: rgba(0,255,255,0.2); box-shadow: 0 0 20px rgba(0,255,255,0.4); }
+
+  .symbol-x { color: var(--neon-pink); text-shadow: 0 0 15px var(--neon-pink); }
+  .symbol-o { color: var(--neon-cyan); text-shadow: 0 0 15px var(--neon-cyan); }
+
+  .scores {
+    display: flex; gap: 20px; justify-content: center; margin-bottom: 18px; flex-wrap: wrap;
+  }
+  .score-card {
+    padding: 12px 20px; border: 1px solid rgba(255,255,255,0.15);
+    text-align: center; min-width: 90px;
+  }
+  .score-card.active { border-color: var(--neon-yellow); }
+  .score-label { font-size: 8px; color: rgba(255,255,255,0.5); margin-bottom: 6px; display: block; }
+  .score-val { font-family: 'VT323', monospace; font-size: 34px; }
+  .x-score { color: var(--neon-pink); }
+  .o-score { color: var(--neon-cyan); }
+  .draw-score { color: rgba(255,255,255,0.4); }
+
+  .new-btn {
+    font-family: 'Press Start 2P', monospace; font-size: 11px;
+    padding: 13px 26px; background: transparent;
+    border: 2px solid var(--neon-yellow); color: var(--neon-yellow);
+    cursor: pointer; transition: all 0.2s;
+    text-shadow: 0 0 10px var(--neon-yellow); margin-top: 5px;
+  }
+  .new-btn:hover { background: var(--neon-yellow); color: #000; }
+
+  @media(max-width:400px) { .cell { width: 90px; height: 90px; font-size: 42px; } }
+</style>
+</head>
+<body>
+<div class="scanlines"></div>
+<a href="/" class="back-btn">◀ BACK</a>
+
+<div class="content">
+  <h1>❌ X & O ⭕</h1>
+
+  <div class="mode-btns">
+    <button class="mode-btn active" id="pvpBtn" onclick="setMode('pvp')">2 PLAYERS</button>
+    <button class="mode-btn" id="aiBtn" onclick="setMode('ai')">VS AI</button>
+    <button class="mode-btn" id="hardBtn" onclick="setMode('hard')">HARD AI</button>
+  </div>
+
+  <div class="scores">
+    <div class="score-card" id="xCard">
+      <span class="score-label">X (P1)</span>
+      <span class="score-val x-score" id="xScore">0</span>
+    </div>
+    <div class="score-card">
+      <span class="score-label">DRAW</span>
+      <span class="score-val draw-score" id="dScore">0</span>
+    </div>
+    <div class="score-card" id="oCard">
+      <span class="score-label" id="oLabel">O (P2)</span>
+      <span class="score-val o-score" id="oScore">0</span>
+    </div>
+  </div>
+
+  <div class="status-bar" id="status">PLAYER X's TURN</div>
+
+  <div class="board" id="board"></div>
+
+  <button class="new-btn" onclick="newGame()">▶ NEW ROUND</button>
+</div>
+
+<script>
+let board = Array(9).fill('');
+let current = 'X';
+let gameOver = false;
+let mode = 'pvp';
+let scores = {X: 0, O: 0, D: 0};
+
+const WIN_LINES = [[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
+
+function setMode(m) {
+  mode = m;
+  ['pvpBtn','aiBtn','hardBtn'].forEach(id => document.getElementById(id).classList.remove('active'));
+  document.getElementById({pvp:'pvpBtn',ai:'aiBtn',hard:'hardBtn'}[m]).classList.add('active');
+  document.getElementById('oLabel').textContent = m === 'pvp' ? 'O (P2)' : 'O (AI)';
+  newGame();
+}
+
+function newGame() {
+  board = Array(9).fill('');
+  current = 'X';
+  gameOver = false;
+  renderBoard();
+  document.getElementById('status').textContent = "PLAYER X's TURN";
+  document.getElementById('status').style.color = '#ff00ff';
+  updateScoreCards();
+}
+
+function updateScoreCards() {
+  document.getElementById('xScore').textContent = scores.X;
+  document.getElementById('oScore').textContent = scores.O;
+  document.getElementById('dScore').textContent = scores.D;
+  document.getElementById('xCard').className = `score-card ${current==='X'&&!gameOver?'active':''}`;
+  document.getElementById('oCard').className = `score-card ${current==='O'&&!gameOver?'active':''}`;
+}
+
+function checkWinner(b) {
+  for (const [a,c,e] of WIN_LINES) {
+    if (b[a] && b[a]===b[c] && b[a]===b[e]) return {winner: b[a], line: [a,c,e]};
+  }
+  if (b.every(c => c)) return {winner: 'D'};
+  return null;
+}
+
+function makeMove(idx) {
+  if (gameOver || board[idx]) return;
+  board[idx] = current;
+  const result = checkWinner(board);
+  renderBoard(result ? result.line : null);
+  if (result) { handleResult(result); return; }
+  current = current === 'X' ? 'O' : 'X';
+  const col = current === 'X' ? '#ff00ff' : '#00ffff';
+  document.getElementById('status').textContent = `PLAYER ${current}'S TURN`;
+  document.getElementById('status').style.color = col;
+  updateScoreCards();
+
+  // AI move
+  if (!gameOver && mode !== 'pvp' && current === 'O') {
+    setTimeout(() => {
+      const move = mode === 'hard' ? bestMove(board) : randomMove(board);
+      if (move !== -1) makeMove(move);
+    }, 400);
+  }
+}
+
+function randomMove(b) {
+  const empty = b.map((v,i) => v==='' ? i : -1).filter(i=>i>=0);
+  return empty.length ? empty[Math.floor(Math.random()*empty.length)] : -1;
+}
+
+function bestMove(b) {
+  let best = -Infinity, move = -1;
+  for (let i = 0; i < 9; i++) {
+    if (!b[i]) {
+      b[i] = 'O';
+      const score = minimax(b, 0, false);
+      b[i] = '';
+      if (score > best) { best = score; move = i; }
+    }
+  }
+  return move;
+}
+
+function minimax(b, depth, isMax) {
+  const r = checkWinner(b);
+  if (r) { if (r.winner === 'O') return 10-depth; if (r.winner === 'X') return depth-10; return 0; }
+  if (isMax) {
+    let best = -Infinity;
+    for (let i = 0; i < 9; i++) { if (!b[i]) { b[i]='O'; best=Math.max(best,minimax(b,depth+1,false)); b[i]=''; } }
+    return best;
+  } else {
+    let best = Infinity;
+    for (let i = 0; i < 9; i++) { if (!b[i]) { b[i]='X'; best=Math.min(best,minimax(b,depth+1,true)); b[i]=''; } }
+    return best;
+  }
+}
+
+function handleResult(result) {
+  gameOver = true;
+  const status = document.getElementById('status');
+  if (result.winner === 'D') {
+    status.textContent = "IT'S A DRAW!";
+    status.style.color = 'rgba(255,255,255,0.6)';
+    scores.D++;
+  } else {
+    const isAI = result.winner === 'O' && mode !== 'pvp';
+    status.textContent = isAI ? '🤖 AI WINS!' : `PLAYER ${result.winner} WINS! 🎉`;
+    status.style.color = result.winner === 'X' ? '#ff00ff' : '#00ffff';
+    scores[result.winner]++;
+  }
+  updateScoreCards();
+  renderBoard(result.line);
+}
+
+function renderBoard(winLine = null) {
+  const boardEl = document.getElementById('board');
+  boardEl.innerHTML = board.map((val, i) => {
+    const isWin = winLine && winLine.includes(i);
+    const cls = `cell ${val?'taken':''} ${val==='X'?'x-cell':''} ${val==='O'?'o-cell':''} ${isWin?'winner':''}`;
+    const sym = val === 'X' ? `<span class="symbol-x">✕</span>` : val === 'O' ? `<span class="symbol-o">○</span>` : '';
+    return `<div class="${cls}" onclick="makeMove(${i})">${sym}</div>`;
+  }).join('');
+}
+
+newGame();
+</script>
+</body>
+</html>
