@@ -2,7 +2,7 @@ from flask import Flask, render_template, jsonify, request, session
 import random
 import json
 
-app = Flask(__name__, template_folder='.')
+app = Flask(__name__)
 app.secret_key = 'retro_arcade_secret_2024'
 
 # ─── Word list for Hangman ───────────────────────────────────────────────────
