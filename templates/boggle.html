@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BOGGLE · RETRO ARCADE</title>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323:wght@400&display=swap" rel="stylesheet">
+<style>
+:root{--nc:#00c8ff;--neon-cyan:#00ffff;--neon-yellow:#ffff00;--neon-pink:#ff00ff;--dark:#0a0a0f;}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{background:var(--dark);font-family:'Press Start 2P',monospace;min-height:100vh;color:#fff;overflow-x:hidden;position:relative;}
+body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(rgba(0,200,255,0.04) 1px,transparent 1px),linear-gradient(90deg,rgba(0,200,255,0.04) 1px,transparent 1px);background-size:35px 35px;animation:gs 18s linear infinite;}
+@keyframes gs{to{background-position:35px 35px;}}
+.scanlines{position:fixed;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.12) 2px,rgba(0,0,0,0.12) 4px);pointer-events:none;z-index:999;}
+.back-btn{position:fixed;top:20px;left:20px;z-index:100;font-family:'Press Start 2P',monospace;font-size:10px;color:var(--neon-cyan);text-decoration:none;padding:10px 15px;border:1px solid var(--neon-cyan);background:rgba(0,0,0,0.5);transition:all 0.2s;}
+.back-btn:hover{background:var(--neon-cyan);color:#000;}
+.container{max-width:900px;margin:0 auto;padding:80px 20px 40px;position:relative;z-index:10;}
+h1{text-align:center;font-size:clamp(22px,4vw,36px);color:var(--nc);text-shadow:0 0 20px var(--nc);margin-bottom:25px;animation:flicker 4s infinite;}
+@keyframes flicker{0%,94%,100%{opacity:1}95%,97%{opacity:0.3}96%,98%{opacity:0.9}}
+.game-layout{display:grid;grid-template-columns:1fr 1fr;gap:25px;align-items:start;}
+@media(max-width:680px){.game-layout{grid-template-columns:1fr;}}
+.left-panel{display:flex;flex-direction:column;gap:16px;}
+/* Timer */
+.timer-bar{background:rgba(0,200,255,0.05);border:2px solid rgba(0,200,255,0.3);padding:15px;text-align:center;}
+.timer-val{font-family:'VT323',monospace;font-size:64px;color:var(--neon-yellow);text-shadow:0 0 20px var(--neon-yellow);line-height:1;}
+.timer-val.danger{color:#ff3333;text-shadow:0 0 20px #ff3333;animation:pulse 0.5s ease infinite alternate;}
+@keyframes pulse{from{transform:scale(1);}to{transform:scale(1.05);}}
+/* Grid */
+.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;background:rgba(0,200,255,0.05);border:2px solid rgba(0,200,255,0.3);padding:12px;}
+.grid-cell{aspect-ratio:1;background:rgba(0,0,0,0.5);border:2px solid rgba(0,200,255,0.25);display:flex;align-items:center;justify-content:center;font-size:clamp(14px,3vw,22px);font-weight:bold;cursor:pointer;transition:all 0.15s;user-select:none;color:rgba(255,255,255,0.9);}
+.grid-cell:hover{border-color:var(--nc);box-shadow:0 0 10px rgba(0,200,255,0.4);}
+.grid-cell.selected{background:rgba(0,200,255,0.25);border-color:var(--nc);color:var(--nc);box-shadow:0 0 12px rgba(0,200,255,0.5);transform:scale(1.05);}
+.grid-cell.path{background:rgba(0,200,255,0.12);border-color:rgba(0,200,255,0.5);}
+/* Input */
+.input-row{display:flex;gap:8px;align-items:stretch;}
+.word-input{font-family:'Press Start 2P',monospace;font-size:12px;padding:12px;background:rgba(0,0,0,0.6);border:2px solid rgba(0,200,255,0.4);color:var(--nc);flex:1;outline:none;text-transform:uppercase;letter-spacing:2px;}
+.word-input:focus{border-color:var(--nc);box-shadow:0 0 10px rgba(0,200,255,0.3);}
+.submit-btn,.clear-btn{font-family:'Press Start 2P',monospace;font-size:10px;padding:10px 14px;background:transparent;cursor:pointer;transition:all 0.2s;white-space:nowrap;}
+.submit-btn{border:2px solid var(--nc);color:var(--nc);}
+.submit-btn:hover{background:var(--nc);color:#000;}
+.clear-btn{border:1px solid rgba(255,255,255,0.3);color:rgba(255,255,255,0.4);}
+.clear-btn:hover{border-color:#ff3333;color:#ff3333;}
+.feedback{font-family:'VT323',monospace;font-size:24px;min-height:32px;text-align:center;transition:all 0.2s;}
+.feedback.ok{color:#00ff41;}.feedback.bad{color:#ff3333;}.feedback.dupe{color:var(--neon-yellow);}
+/* Score + words */
+.right-panel{display:flex;flex-direction:column;gap:16px;}
+.score-panel{background:rgba(0,200,255,0.05);border:2px solid rgba(0,200,255,0.3);padding:15px;}
+.score-val{font-family:'VT323',monospace;font-size:48px;color:var(--neon-yellow);text-align:center;}
+.score-label{font-size:8px;color:var(--nc);text-align:center;margin-top:4px;}
+.words-panel{background:rgba(0,200,255,0.05);border:2px solid rgba(0,200,255,0.3);padding:15px;flex:1;}
+.words-title{font-size:9px;color:var(--nc);margin-bottom:12px;text-align:center;}
+.word-list{display:flex;flex-wrap:wrap;gap:6px;max-height:280px;overflow-y:auto;}
+.word-chip{font-family:'VT323',monospace;font-size:18px;padding:4px 10px;border:1px solid rgba(0,200,255,0.3);color:rgba(255,255,255,0.8);animation:popIn 0.3s ease;}
+@keyframes popIn{0%{transform:scale(0.5);}70%{transform:scale(1.1);}100%{transform:scale(1);}}
+/* Buttons */
+.start-btn{font-family:'Press Start 2P',monospace;font-size:13px;padding:15px 30px;background:transparent;border:2px solid var(--nc);color:var(--nc);cursor:pointer;display:block;margin:0 auto;transition:all 0.2s;text-shadow:0 0 10px var(--nc);}
+.start-btn:hover{background:var(--nc);color:#000;}
+/* Overlay */
+.overlay{display:none;position:fixed;inset:0;z-index:400;background:rgba(0,0,0,0.88);flex-direction:column;align-items:center;justify-content:center;gap:20px;font-family:'Press Start 2P',monospace;}
+.overlay.show{display:flex;}
+.ov-title{font-size:28px;color:var(--nc);text-shadow:0 0 30px var(--nc);text-align:center;}
+.ov-score{font-family:'VT323',monospace;font-size:50px;color:var(--neon-yellow);}
+.ov-words{font-family:'VT323',monospace;font-size:22px;color:rgba(255,255,255,0.5);}
+</style>
+</head>
+<body>
+<div class="scanlines"></div>
+<a href="/" class="back-btn">◀ BACK</a>
+<div class="container">
+  <h1>🔤 BOGGLE</h1>
+  <div class="game-layout">
+    <div class="left-panel">
+      <div class="timer-bar"><div class="timer-val" id="timerVal">90</div><div style="font-size:8px;color:rgba(0,200,255,0.5);margin-top:4px;">SECONDS REMAINING</div></div>
+      <div class="grid" id="grid"></div>
+      <div class="input-row">
+        <input class="word-input" id="wordInput" type="text" placeholder="TYPE WORD..." maxlength="16" autocomplete="off">
+        <button class="submit-btn" onclick="submitWord()">✓</button>
+        <button class="clear-btn" onclick="clearSel()">✕</button>
+      </div>
+      <div class="feedback" id="feedback"></div>
+      <button class="start-btn" id="startBtn" onclick="startGame()">▶ START GAME</button>
+    </div>
+    <div class="right-panel">
+      <div class="score-panel"><div class="score-val" id="scoreVal">0</div><div class="score-label">TOTAL SCORE</div></div>
+      <div class="words-panel"><div class="words-title">WORDS FOUND (<span id="wordCount">0</span>)</div><div class="word-list" id="wordList"></div></div>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="endOverlay">
+  <div class="ov-title">⏰ TIME'S UP!</div>
+  <div class="ov-score" id="finalScore">0</div>
+  <div class="ov-words" id="finalWords">0 words found</div>
+  <button class="start-btn" onclick="resetGame()">▶ PLAY AGAIN</button>
+  <a href="/" style="font-family:'VT323',monospace;font-size:22px;color:rgba(255,255,255,0.4);text-decoration:none">MAIN MENU</a>
+</div>
+
+<script>
+// Common English words for validation (subset)
+const VALID_WORDS = new Set(['CAT','DOG','HAT','BAT','RAT','SAT','MAT','FAT','PAT','TAP','MAP','NAP','CAP','LAP','SAP','GAP','RAP','YAP','ZAP','ATE','ACE','ICE','IRE','ORE','ARE','APE','AGE','AXE','EYE','OAR','OAK','OAT','TAR','TAN','TIN','TEN','TON','TOE','TOY','TAB','TOP','TOT','TIP','TIE','TAG','TAD','TAO','TAU','THE','THY','EAR','EAT','EEL','EGG','ELK','ELM','EMU','ERA','ERR','ETA','EVE','AWE','AXE','BAG','BAN','BIN','BIT','BOG','BOW','BOX','BOY','BUD','BUN','BUS','BUT','BUY','CAB','CAM','CAN','COB','COD','COG','CON','COO','COP','COT','COW','COY','CRY','CUB','CUD','CUE','CUP','CUR','CUT','DAB','DAD','DAM','DEN','DEW','DID','DIG','DIM','DIP','DOE','DOT','DRY','DUB','DUD','DUE','DUG','DUO','DYE','FAD','FAN','FAR','FED','FEW','FIG','FIN','FIT','FLY','FOB','FOE','FOG','FOR','FRY','FUB','FUN','FUR','GAB','GAG','GAL','GEL','GEM','GIG','GIN','GNU','GOB','GOD','GOT','GUM','GUN','GUS','GUT','GUY','GYM','HAD','HAG','HAM','HAS','HAY','HEM','HEN','HEP','HID','HIM','HIP','HIS','HIT','HOB','HOD','HOG','HOP','HOT','HOW','HUB','HUG','HUM','HUT','ILL','IMP','INK','INN','ION','IRK','JAB','JAG','JAM','JAR','JAW','JAY','JET','JIG','JOB','JOG','JOT','JOY','JUG','JUT','KEG','KIT','LAB','LAD','LAG','LAW','LAX','LAY','LED','LEG','LET','LID','LIP','LIT','LOG','LOT','LOW','MAD','MAN','MAS','MAW','MAY','MEN','MET','MID','MOB','MOD','MOM','MOP','MOW','MUD','MUG','NAN','NAP','NAY','NET','NEW','NIB','NIT','NOB','NOD','NOR','NOT','NOW','NUN','NUT','ODD','ODE','OFF','OFT','OHM','OHO','OIL','OLD','OPT','OUR','OUT','OWE','OWL','OWN','PAD','PAL','PAN','PAP','PAR','PAW','PAY','PEA','PEG','PEN','PEP','PET','PIE','PIG','PIN','PIT','PLY','POD','POP','POT','POW','PRY','PUB','PUG','PUN','PUP','PUS','PUT','RAG','RAM','RAN','RAW','RAY','RED','REF','REP','RIB','RID','RIG','RIM','RIP','ROB','ROD','ROT','ROW','RUB','RUG','RUM','RUN','RUT','SAC','SAG','SAN','SAP','SAW','SAY','SEA','SET','SEW','SIP','SIT','SIX','SKI','SKY','SLY','SOB','SOD','SON','SOP','SOT','SOW','SOY','SPA','SPY','STY','SUB','SUE','SUM','SUN','SUP','TAB','TAD','TAN','TAO','TAP','TAU','TAX','TEA','TEN','THE','THY','TIN','TIP','TOE','TON','TOO','TOP','TOT','TOW','TOY','TUB','TUG','TUN','TWO','UDO','UGH','URN','USE','VAN','VAT','VIA','VIE','VOW','WAD','WAR','WAS','WAX','WAY','WEB','WED','WET','WHO','WHY','WIG','WIN','WIT','WOE','WOK','WON','WOO','WOW','YAK','YAM','YAP','YAW','YEA','YEP','YES','YET','YEW','YIN','YOU','ZAP','ZAG','ZAX','ZED','ZEN','ZIG','ZIP','ZIT','ZOO','ABLE','ACHE','ACID','AGED','AGES','AIDE','AIMS','AIRS','AJAR','AKIN','ALAN','ALMS','ALSO','ALTO','ALUM','AMOK','ANAL','ANEW','ANTE','APEX','ARCH','AREA','ARIA','ARID','ARMY','ARTS','ARTY','ASHY','ASKS','ATOM','ATOP','AVID','AWAY','AWED','AWRY','BABY','BACK','BADE','BALD','BALE','BALK','BALL','BALM','BAND','BANE','BANG','BANK','BARE','BARK','BARN','BASE','BASH','BASK','BASS','BATH','BAWL','BEAD','BEAK','BEAM','BEAN','BEAR','BEAT','BEEF','BEEN','BEER','BEET','BELL','BELT','BEND','BENT','BEST','BIAS','BIKE','BILE','BIND','BIRD','BITE','BITS','BLED','BLESS','BLEW','BLOB','BLOC','BLOT','BLOW','BLUE','BLUR','BOAR','BOAT','BOLD','BOLT','BOND','BONE','BOOK','BOOM','BORE','BOTH','BOUT','BOWL','BRED','BREW','BRIG','BRIM','BROW','BROW','BULK','BULL','BUMP','BUNT','BURN','BURP','BURR','CAFE','CAGE','CAKE','CALF','CALL','CALM','CAME','CANE','CARD','CARE','CARP','CART','CASE','CASH','CAST','CAVE','CELL','CENT','CHAD','CHAP','CHAR','CHAT','CHEF','CHEW','CHIP','CHOP','CLAD','CLAM','CLAP','CLAW','CLAY','CLIP','CLOP','CLUB','CLUE','COAL','COAT','COIL','COIN','COLD','COME','CONE','COPE','CORD','CORE','CORK','CORN','COST','COUP','COZY','CRAM','CRAW','CREW','CRIB','CROP','CROW','CUBE','CURB','CURL','CYST','DALE','DAMP','DARK','DART','DATA','DATE','DAWN','DAYS','DEAD','DEAL','DEAR','DECK','DEEP','DEER','DENT','DESK','DIAL','DICE','DIED','DILL','DIME','DINE','DIRE','DIRT','DISC','DISH','DISK','DIVA','DIVE','DOCK','DOME','DONE','DOOM','DOOR','DOSE','DOWN','DRAB','DRAG','DRAW','DREW','DRIP','DROP','DRUG','DRUM','DUAL','DUMB','DUNE','DUSK','DUST','DUTY','EACH','EARL','EASE','EAST','EDGE','EPIC','EVEN','EVER','EVIL','EXAM','FACE','FACT','FADE','FAIL','FAIR','FALL','FAME','FARE','FARM','FAST','FATE','FAWN','FEAT','FEEL','FEET','FELL','FELT','FEND','FERN','FILE','FILL','FILM','FIND','FINE','FIRE','FIRM','FISH','FIST','FLAG','FLAK','FLAT','FLAW','FLEA','FLEW','FLEX','FLIP','FLIT','FLOG','FLOW','FLUE','FOAM','FOLD','FOLK','FOND','FONT','FOOD','FOOL','FORD','FORE','FORK','FORM','FOUL','FOUR','FOWL','FREE','FROG','FROM','FUEL','FULL','FUME','FUSE','GALE','GALL','GANG','GASP','GATE','GAVE','GAZE','GEAR','GIBE','GILL','GIRL','GIVE','GLAD','GLEE','GLEN','GLOB','GLUE','GLUM','GOAD','GOAL','GOAT','GOES','GOLD','GOLF','GONE','GOOD','GORE','GOSH','GOWN','GRAB','GRAM','GRAY','GREW','GREY','GRIN','GRIP','GRIT','GRUB','GULF','GUST','HACK','HAIL','HAIR','HALF','HALL','HALT','HAND','HANG','HARD','HARE','HARM','HARP','HASH','HAUL','HAVE','HAWK','HAZE','HAZY','HEAD','HEAL','HEAP','HEAT','HEED','HEEL','HEIR','HELD','HELM','HELP','HERB','HERD','HERE','HERO','HIGH','HIKE','HILL','HINT','HOLD','HOLE','HOME','HONE','HOOD','HOOK','HOPE','HORN','HOSE','HOST','HUGE','HULL','HUNT','HURL','HYMN','ICON','IDLE','INCH','INTO','IRIS','IRON','ITEM','JACK','JADE','JAIL','JEST','JOIN','JOKE','JOLT','JUNK','JUST','KEEN','KEEP','KEGS','KELP','KERN','KICK','KILL','KIND','KING','KISS','KITE','KNOB','KNOT','KNOW','LACE','LACK','LAKE','LAMB','LAMP','LAND','LANE','LARD','LARK','LASH','LAST','LATE','LAUD','LAWN','LEAD','LEAF','LEAK','LEAN','LEAP','LEFT','LEND','LENS','LIEN','LIKE','LIME','LIMP','LINE','LION','LIST','LIVE','LOAD','LOAF','LOAN','LOCK','LOFT','LONE','LONG','LOOK','LOOM','LOOP','LORD','LORE','LOSE','LOSS','LOST','LOUD','LOUT','LUSH','LUST','MACE','MADE','MAIL','MAIN','MAKE','MALE','MANE','MARE','MARK','MARS','MASH','MASK','MASS','MAST','MATE','MAUL','MAZE','MEAD','MEAL','MEAN','MEAT','MEND','MESS','MILD','MILK','MILL','MIME','MIND','MINE','MINT','MIST','MODE','MOLD','MOLE','MOOD','MOON','MOOR','MORE','MOSS','MOST','MOTH','MOVE','MUCH','MULE','MURK','MURMUR','MUTT','MYTH','NAIL','NAME','NAPE','NAVY','NEAR','NECK','NEED','NEST','NEWS','NEXT','NICE','NINE','NODE','NONE','NOON','NOPE','NORM','NOSE','NOTE','NUMB','OATH','OBOE','ODDS','OMEN','ONCE','ONLY','OPEN','ORAL','OVEN','OVER','OWED','PAID','PAIL','PAIR','PALE','PALM','PANT','PATH','PAVE','PEAK','PEAL','PEAR','PECK','PEEL','PEER','PELT','PEST','PINE','PINK','PIPE','PLAN','PLAY','PLEA','PLOD','PLOT','PLOW','PLOY','PLUM','PLUS','POEM','POET','POKE','POLE','POLO','POND','POOL','POOR','POPE','PORE','PORK','PORT','POSE','POST','POUR','POUT','PRAY','PREY','PRIM','PROD','PROP','PROW','PULL','PUMP','PURE','PUSH','RACK','RAMP','RANG','RANK','RANT','RASH','RATE','RAVE','RAZZ','READ','REAL','REAP','REEL','RELY','REND','RENT','RENT','RIFF','RIFT','RING','RINK','RIOT','RISE','RISK','ROAD','ROAM','ROAR','ROBE','ROCK','RODE','ROLE','ROLL','ROOF','ROOM','ROOT','ROPE','ROSE','ROUT','ROVE','RUBY','RUDE','RUIN','RULE','RUSE','RUSH','RUST','SAFE','SAGE','SAIL','SAKE','SALE','SALT','SAME','SAND','SANG','SANE','SANG','SARI','SASH','SAVE','SCAM','SCAN','SCAR','SEAM','SEAT','SEED','SEEK','SEEM','SEEP','SELF','SELL','SEND','SERF','SHED','SHIM','SHIN','SHIP','SHOE','SHOT','SHOW','SICK','SIDE','SIFT','SIGH','SIGN','SILK','SILL','SILO','SILT','SING','SINK','SITE','SIZE','SKID','SKIM','SKIN','SKIP','SLAB','SLAP','SLAT','SLEW','SLIM','SLIP','SLOB','SLOT','SLUG','SLUM','SLUR','SMUG','SNAG','SNAP','SNOW','SOAK','SOAP','SOAR','SOCK','SOFA','SOIL','SOLD','SOLE','SOME','SONG','SORT','SOUL','SOUP','SOUR','SPAN','SPAR','SPED','SPIN','SPIT','SPOT','SPUN','STAR','STAY','STEM','STEP','STEW','STIR','STOP','STUB','STUD','STUN','SUCH','SUIT','SULK','SURF','SWAB','SWAM','SWAP','SWAT','SWAY','SWIM','SWUM','SYNC','TACK','TALE','TALL','TAME','TASK','TAUT','TAWNY','TEAR','TEEM','TELL','TEND','TENT','TERM','TEST','TEXT','THAN','THAT','THEM','THEN','THEY','THIN','THIS','THORN','THOU','TIDE','TILE','TILL','TILT','TIME','TIRE','TOAD','TOLD','TOLL','TOMB','TONE','TOOL','TORE','TOSS','TOUR','TOWN','TRAP','TRAY','TREE','TREK','TRIM','TRIP','TROD','TROT','TROY','TRUE','TUCK','TUFT','TUSK','TUTU','TWIG','TWIN','TYPE','UGLY','UNDO','UNIT','UPON','URGE','USED','VALE','VARY','VEIL','VEIN','VERB','VERY','VEST','VETO','VIEW','VINE','VISA','VOID','VOLT','VOTE','WADE','WAGE','WAIL','WAIT','WAKE','WANE','WARD','WARM','WARN','WART','WASP','WAVE','WEAK','WEAL','WEAN','WEEP','WELD','WENT','WERE','WHAT','WHEN','WHIM','WHIP','WHIT','WHOM','WIDE','WILE','WILL','WILT','WINK','WIRE','WISE','WISH','WISP','WITH','WOKE','WOLF','WOOD','WORD','WORE','WORK','WORM','WORN','WOVE','WRAP','WREN','YELL','YOUR','ZEAL','ZERO','ZONE','ZOOM']);
+
+const FREQ_LETTERS = 'AAABBCDDEEEEEFFGGHHIIIJKLLLMMNNNOOOOPPQRRRRSSSSTTTTUUUVWWXYZ';
+let grid=[], selected=[], foundWords=new Set(), score=0, timer=90, timerInterval=null, gameActive=false;
+
+function buildGrid(){
+  grid=[];
+  for(let i=0;i<16;i++) grid.push(FREQ_LETTERS[Math.floor(Math.random()*FREQ_LETTERS.length)]);
+  renderGrid();
+}
+
+function renderGrid(){
+  const el=document.getElementById('grid');
+  el.innerHTML='';
+  grid.forEach((letter,idx)=>{
+    const cell=document.createElement('div');
+    cell.className='grid-cell'+(selected.includes(idx)?' selected':'');
+    cell.textContent=letter;
+    cell.onclick=()=>toggleCell(idx);
+    el.appendChild(cell);
+  });
+}
+
+function toggleCell(idx){
+  if(!gameActive)return;
+  const pos=selected.indexOf(idx);
+  if(pos===-1){
+    selected.push(idx);
+  } else {
+    selected.splice(pos,1);
+  }
+  const inp=document.getElementById('wordInput');
+  inp.value=selected.map(i=>grid[i]).join('');
+  renderGrid();
+}
+
+function clearSel(){
+  selected=[];
+  document.getElementById('wordInput').value='';
+  document.getElementById('feedback').textContent='';
+  renderGrid();
+}
+
+function submitWord(){
+  if(!gameActive) return;
+  const word=(document.getElementById('wordInput').value||'').toUpperCase().trim();
+  const fb=document.getElementById('feedback');
+  if(word.length<3){fb.className='feedback bad';fb.textContent='MIN 3 LETTERS!';return;}
+  if(foundWords.has(word)){fb.className='feedback dupe';fb.textContent='ALREADY FOUND!';return;}
+  if(!VALID_WORDS.has(word)){fb.className='feedback bad';fb.textContent='NOT A VALID WORD!';return;}
+  // Accept word (no strict adjacency check — keeping it simple and playable)
+  foundWords.add(word);
+  const pts=word.length<=3?1:word.length<=4?2:word.length<=5?4:word.length<=6?6:word.length<=7?9:14;
+  score+=pts;
+  document.getElementById('scoreVal').textContent=score;
+  document.getElementById('wordCount').textContent=foundWords.size;
+  const chip=document.createElement('div');
+  chip.className='word-chip';
+  chip.textContent=`${word} (+${pts})`;
+  document.getElementById('wordList').prepend(chip);
+  fb.className='feedback ok';
+  fb.textContent=`✓ ${word} +${pts} PTS!`;
+  clearSel();
+}
+
+function startGame(){
+  gameActive=true;
+  score=0;
+  timer=90;
+  foundWords=new Set();
+  selected=[];
+  document.getElementById('scoreVal').textContent='0';
+  document.getElementById('wordCount').textContent='0';
+  document.getElementById('wordList').innerHTML='';
+  document.getElementById('feedback').textContent='';
+  document.getElementById('startBtn').textContent='▶ NEW BOARD';
+  document.getElementById('endOverlay').classList.remove('show');
+  buildGrid();
+  if(timerInterval) clearInterval(timerInterval);
+  timerInterval=setInterval(()=>{
+    timer--;
+    const tv=document.getElementById('timerVal');
+    tv.textContent=timer;
+    tv.className='timer-val'+(timer<=15?' danger':'');
+    if(timer<=0){clearInterval(timerInterval);gameActive=false;endGame();}
+  },1000);
+}
+
+function resetGame(){
+  document.getElementById('endOverlay').classList.remove('show');
+  startGame();
+}
+
+function endGame(){
+  document.getElementById('finalScore').textContent=score+' PTS';
+  document.getElementById('finalWords').textContent=foundWords.size+' words found';
+  document.getElementById('endOverlay').classList.add('show');
+}
+
+document.getElementById('wordInput').addEventListener('keydown',e=>{if(e.key==='Enter')submitWord();});
+buildGrid();
+</script>
+</body>
+</html>

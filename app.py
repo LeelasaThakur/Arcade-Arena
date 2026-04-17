@@ -131,5 +131,27 @@ def snl_roll():
     won = final_pos == 100
     return jsonify({'die': die, 'position': final_pos, 'event': event, 'won': won, 'intermediate': new_pos})
 
+@app.route('/api/boogle/new', methods=['POST'])
+def boggle_new():
+    deck = create_deck()
+    tableau = [[] for _ in range(7)]
+    for col in range(7):
+        for row in range(col + 1):
+            card = deck.pop()
+            card['face_up'] = (row == col)
+            tableau[col].append(card)
+    # Remaining cards go to stock
+    stock = deck
+    return jsonify({
+        'tableau': tableau,
+        'stock': [{'face_up': False} for _ in stock],
+        'stock_data': stock,
+        'waste': [],
+        'foundations': [[], [], [], []]
+    })
+
+
+
+
 if __name__ == '__main__':
     app.run(debug=True, port=5000)

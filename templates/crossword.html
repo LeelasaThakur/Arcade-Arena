@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CROSSWORD · RETRO ARCADE</title>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323:wght@400&display=swap" rel="stylesheet">
+<style>
+:root{--nc:#b400ff;--neon-cyan:#00ffff;--neon-yellow:#ffff00;--dark:#0a0a0f;}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{background:var(--dark);font-family:'Press Start 2P',monospace;min-height:100vh;color:#fff;overflow-x:hidden;position:relative;}
+body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(rgba(180,0,255,0.04) 1px,transparent 1px),linear-gradient(90deg,rgba(180,0,255,0.04) 1px,transparent 1px);background-size:35px 35px;animation:gs 20s linear infinite;}
+@keyframes gs{to{background-position:35px 35px;}}
+.scanlines{position:fixed;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.12) 2px,rgba(0,0,0,0.12) 4px);pointer-events:none;z-index:999;}
+.back-btn{position:fixed;top:20px;left:20px;z-index:100;font-family:'Press Start 2P',monospace;font-size:10px;color:var(--neon-cyan);text-decoration:none;padding:10px 15px;border:1px solid var(--neon-cyan);background:rgba(0,0,0,0.5);transition:all 0.2s;}
+.back-btn:hover{background:var(--neon-cyan);color:#000;}
+.container{max-width:1000px;margin:0 auto;padding:80px 20px 40px;position:relative;z-index:10;}
+h1{text-align:center;font-size:clamp(18px,3.5vw,30px);color:var(--nc);text-shadow:0 0 20px var(--nc);margin-bottom:25px;animation:flicker 4s infinite;}
+@keyframes flicker{0%,94%,100%{opacity:1}95%,97%{opacity:0.3}96%,98%{opacity:0.9}}
+.layout{display:grid;grid-template-columns:auto 1fr;gap:30px;align-items:start;}
+@media(max-width:720px){.layout{grid-template-columns:1fr;}}
+/* Grid */
+.cw-grid{display:grid;gap:2px;background:rgba(180,0,255,0.1);border:2px solid rgba(180,0,255,0.4);padding:8px;width:fit-content;margin:0 auto;}
+.cw-row{display:flex;gap:2px;}
+.cw-cell{width:40px;height:40px;position:relative;display:flex;align-items:center;justify-content:center;}
+@media(max-width:500px){.cw-cell{width:30px;height:30px;}}
+.cw-cell.black{background:#111;}
+.cw-cell.white{background:rgba(0,0,0,0.7);border:1px solid rgba(180,0,255,0.3);}
+.cw-cell.active .cell-input{border-color:var(--nc)!important;box-shadow:0 0 10px rgba(180,0,255,0.5);}
+.cw-cell.highlight .cell-input{background:rgba(180,0,255,0.15);}
+.cw-cell.correct .cell-input{color:#00ff41;border-color:#00ff41;background:rgba(0,255,65,0.1);}
+.cw-cell.wrong .cell-input{color:#ff3333;border-color:#ff3333;background:rgba(255,51,51,0.1);}
+.cell-num{position:absolute;top:2px;left:3px;font-family:'VT323',monospace;font-size:11px;color:rgba(180,0,255,0.8);line-height:1;pointer-events:none;z-index:2;}
+.cell-input{width:100%;height:100%;background:transparent;border:1px solid rgba(180,0,255,0.2);color:var(--nc);text-align:center;font-family:'Press Start 2P',monospace;font-size:clamp(11px,2vw,15px);text-transform:uppercase;outline:none;cursor:pointer;caret-color:transparent;}
+.cell-input:focus{border-color:var(--nc)!important;box-shadow:0 0 8px rgba(180,0,255,0.4);}
+/* Clues */
+.clues-panel{background:rgba(180,0,255,0.05);border:2px solid rgba(180,0,255,0.3);padding:20px;max-height:80vh;overflow-y:auto;}
+.clues-section{margin-bottom:20px;}
+.clues-title{font-size:10px;color:var(--nc);text-shadow:0 0 10px var(--nc);margin-bottom:12px;letter-spacing:2px;}
+.clue-item{font-family:'VT323',monospace;font-size:19px;color:rgba(255,255,255,0.7);margin-bottom:8px;padding:6px 8px;border-left:2px solid rgba(180,0,255,0.2);cursor:pointer;transition:all 0.15s;line-height:1.4;}
+.clue-item:hover{border-color:var(--nc);color:#fff;background:rgba(180,0,255,0.1);}
+.clue-item.active{border-color:var(--nc);color:var(--nc);}
+.clue-item.solved{color:#00ff41;border-color:#00ff41;}
+/* Bottom bar */
+.bottom-bar{display:flex;gap:15px;margin-top:20px;align-items:center;flex-wrap:wrap;justify-content:center;}
+.check-btn,.reveal-btn,.new-btn{font-family:'Press Start 2P',monospace;font-size:10px;padding:12px 18px;background:transparent;cursor:pointer;transition:all 0.2s;}
+.check-btn{border:2px solid var(--nc);color:var(--nc);}
+.check-btn:hover{background:var(--nc);color:#000;}
+.reveal-btn{border:1px solid rgba(255,255,0,0.5);color:var(--neon-yellow);}
+.reveal-btn:hover{background:var(--neon-yellow);color:#000;}
+.new-btn{border:1px solid rgba(255,255,255,0.2);color:rgba(255,255,255,0.4);}
+.new-btn:hover{border-color:var(--neon-cyan);color:var(--neon-cyan);}
+.progress{font-family:'VT323',monospace;font-size:24px;color:rgba(255,255,255,0.5);}
+.win-msg{display:none;font-family:'VT323',monospace;font-size:36px;color:var(--neon-yellow);text-align:center;margin-top:15px;text-shadow:0 0 20px var(--neon-yellow);}
+.win-msg.show{display:block;animation:popIn 0.5s ease;}
+@keyframes popIn{0%{transform:scale(0.5);}70%{transform:scale(1.1);}100%{transform:scale(1);}}
+</style>
+</head>
+<body>
+<div class="scanlines"></div>
+<a href="/" class="back-btn">◀ BACK</a>
+<div class="container">
+  <h1>📝 CROSSWORD</h1>
+  <div class="layout">
+    <div>
+      <div class="cw-grid" id="cwGrid"></div>
+      <div class="win-msg" id="winMsg">🎉 PUZZLE COMPLETE! 🎉</div>
+    </div>
+    <div class="clues-panel">
+      <div class="clues-section">
+        <div class="clues-title">ACROSS →</div>
+        <div id="acrossClues"></div>
+      </div>
+      <div class="clues-section">
+        <div class="clues-title">DOWN ↓</div>
+        <div id="downClues"></div>
+      </div>
+    </div>
+  </div>
+  <div class="bottom-bar">
+    <div class="progress">FILLED: <span id="progEl">0</span> / <span id="totalEl">0</span></div>
+    <button class="check-btn" onclick="checkAll()">✓ CHECK</button>
+    <button class="reveal-btn" onclick="revealAll()">👁 REVEAL</button>
+    <button class="new-btn" onclick="initPuzzle()">↺ RESET</button>
+  </div>
+</div>
+
+<script>
+// Puzzle definition — 10x10 grid
+// '#' = black, letter = answer
+const ANSWER_GRID = [
+  ['P','I','X','E','L','#','G','A','M','E'],
+  ['#','#','#','#','A','#','#','#','#','#'],
+  ['A','R','C','A','D','E','#','N','E','T'],
+  ['#','#','#','#','G','#','#','#','#','#'],
+  ['R','E','T','R','O','#','C','O','D','E'],
+  ['#','#','#','#','N','#','#','#','#','#'],
+  ['L','E','V','E','L','#','P','L','A','Y'],
+  ['#','#','#','#','#','#','#','#','#','#'],
+  ['S','T','A','R','#','B','O','M','B','#'],
+  ['#','#','#','#','#','#','#','#','#','#'],
+];
+
+const CLUES = {
+  across: [
+    {num:1, row:0, col:0, len:5, clue:'Tiny picture element on a screen'},
+    {num:6, row:0, col:6, len:4, clue:'An interactive entertainment product'},
+    {num:7, row:2, col:0, len:6, clue:'Retro gaming hall; coin-op machines'},
+    {num:8, row:2, col:7, len:3, clue:'Internet connection (abbr.)'},
+    {num:9, row:4, col:0, len:5, clue:'Old-school; vintage style'},
+    {num:10, row:4, col:6, len:4, clue:'Instructions a computer executes'},
+    {num:11, row:6, col:0, len:5, clue:'Stage or difficulty in a game'},
+    {num:12, row:6, col:6, len:4, clue:'To take part in a game'},
+    {num:13, row:8, col:0, len:4, clue:'Celestial body; 5-pointed symbol'},
+    {num:14, row:8, col:5, len:4, clue:'Explosive hazard to dodge'},
+  ],
+  down: [
+    {num:1, row:0, col:0, len:3, clue:'Arcade game cabinet part (abbrev: joystick arm)'},
+    {num:2, row:0, col:4, len:7, clue:'Distance from edge to center'},
+    {num:3, row:2, col:1, len:3, clue:'To depend on; count upon'},
+    {num:4, row:0, col:9, len:7, clue:'Playground for games (GAME + ?)'},
+    {num:5, row:4, col:6, len:3, clue:'Programming language command'},
+  ]
+};
+
+let userGrid=[], activeClue=null;
+
+function initPuzzle(){
+  userGrid=ANSWER_GRID.map(row=>row.map(c=>c==='#'?'#':''));
+  activeClue=null;
+  renderGrid();
+  renderClues();
+  updateProgress();
+  document.getElementById('winMsg').classList.remove('show');
+}
+
+function renderGrid(){
+  const el=document.getElementById('cwGrid');
+  el.innerHTML='';
+  // Number map
+  const numMap={};
+  [...CLUES.across,...CLUES.down].forEach(c=>{const k=`${c.row},${c.col}`;if(!numMap[k])numMap[k]=c.num;});
+  for(let r=0;r<10;r++){
+    const rowEl=document.createElement('div');
+    rowEl.className='cw-row';
+    for(let c=0;c<10;c++){
+      const cell=document.createElement('div');
+      cell.className='cw-cell '+(ANSWER_GRID[r][c]==='#'?'black':'white');
+      cell.dataset.r=r;cell.dataset.c=c;
+      if(ANSWER_GRID[r][c]!=='#'){
+        if(numMap[`${r},${c}`]){const n=document.createElement('span');n.className='cell-num';n.textContent=numMap[`${r},${c}`];cell.appendChild(n);}
+        const inp=document.createElement('input');
+        inp.className='cell-input';
+        inp.maxLength=1;
+        inp.value=userGrid[r][c];
+        inp.dataset.r=r;inp.dataset.c=c;
+        inp.addEventListener('input',e=>{const v=e.target.value.toUpperCase().replace(/[^A-Z]/,'');inp.value=v;userGrid[r][c]=v;updateProgress();highlightActive();});
+        inp.addEventListener('focus',()=>{highlightClueForCell(r,c);});
+        inp.addEventListener('keydown',e=>handleKey(e,r,c));
+        cell.appendChild(inp);
+      }
+      rowEl.appendChild(cell);
+    }
+    el.appendChild(rowEl);
+  }
+}
+
+function handleKey(e,r,c){
+  if(e.key==='ArrowRight')focusCell(r,c+1);
+  else if(e.key==='ArrowLeft')focusCell(r,c-1);
+  else if(e.key==='ArrowDown')focusCell(r+1,c);
+  else if(e.key==='ArrowUp')focusCell(r-1,c);
+  else if(e.key==='Backspace'&&!userGrid[r][c]){
+    // find prev
+    if(activeClue&&activeClue.dir==='across')focusCell(r,c-1);
+    else focusCell(r-1,c);
+  } else if(e.key.match(/^[a-zA-Z]$/)){ 
+    setTimeout(()=>{if(activeClue&&activeClue.dir==='across')focusCell(r,c+1);else focusCell(r+1,c);},10);
+  }
+}
+
+function focusCell(r,c){
+  if(r<0||r>=10||c<0||c>=10)return;
+  if(ANSWER_GRID[r][c]==='#')return;
+  const inp=document.querySelector(`.cell-input[data-r="${r}"][data-c="${c}"]`);
+  if(inp)inp.focus();
+}
+
+function highlightClueForCell(r,c){
+  // Find best matching clue
+  let best=null;
+  [...CLUES.across,...CLUES.down].forEach(cl=>{
+    const dir=cl.row===cl.row&&CLUES.across.includes(cl)?'across':'down';
+    const inClue=dir==='across'?(cl.row===r&&c>=cl.col&&c<cl.col+cl.len):(cl.col===c&&r>=cl.row&&r<cl.row+cl.len);
+    if(inClue)best={...cl,dir};
+  });
+  // distinguish
+  CLUES.across.forEach(cl=>{const inClue=cl.row===r&&c>=cl.col&&c<cl.col+cl.len;if(inClue&&(!best||best.dir==='down'))best={...cl,dir:'across'};});
+  CLUES.down.forEach(cl=>{const inClue=cl.col===c&&r>=cl.row&&r<cl.row+cl.len;if(inClue&&!best)best={...cl,dir:'down'};});
+  activeClue=best;
+  highlightActive();
+  if(best){
+    // highlight clue item
+    document.querySelectorAll('.clue-item').forEach(el=>el.classList.remove('active'));
+    const clueEl=document.querySelector(`.clue-item[data-num="${best.num}"][data-dir="${best.dir}"]`);
+    if(clueEl){clueEl.classList.add('active');clueEl.scrollIntoView({block:'nearest'});}
+  }
+}
+
+function highlightActive(){
+  document.querySelectorAll('.cw-cell').forEach(cell=>{
+    cell.classList.remove('highlight','active');
+    if(!activeClue)return;
+    const r=parseInt(cell.dataset.r),c=parseInt(cell.dataset.c);
+    const inp=cell.querySelector('.cell-input');
+    if(!inp)return;
+    const inClue=activeClue.dir==='across'?(activeClue.row===r&&c>=activeClue.col&&c<activeClue.col+activeClue.len):(activeClue.col===c&&r>=activeClue.row&&r<activeClue.row+activeClue.len);
+    if(inClue)cell.classList.add('highlight');
+  });
+}
+
+function renderClues(){
+  ['across','down'].forEach(dir=>{
+    const el=document.getElementById(dir+'Clues');
+    el.innerHTML='';
+    CLUES[dir].forEach(cl=>{
+      const div=document.createElement('div');
+      div.className='clue-item';
+      div.dataset.num=cl.num;div.dataset.dir=dir;
+      div.textContent=`${cl.num}. ${cl.clue}`;
+      div.onclick=()=>{
+        activeClue={...cl,dir};
+        focusCell(cl.row,cl.col);
+        highlightActive();
+        document.querySelectorAll('.clue-item').forEach(e=>e.classList.remove('active'));
+        div.classList.add('active');
+      };
+      el.appendChild(div);
+    });
+  });
+}
+
+function updateProgress(){
+  let filled=0,total=0;
+  for(let r=0;r<10;r++)for(let c=0;c<10;c++)if(ANSWER_GRID[r][c]!=='#'){total++;if(userGrid[r][c])filled++;}
+  document.getElementById('progEl').textContent=filled;
+  document.getElementById('totalEl').textContent=total;
+}
+
+function checkAll(){
+  let allCorrect=true;
+  document.querySelectorAll('.cw-cell.white').forEach(cell=>{
+    const r=parseInt(cell.dataset.r),c=parseInt(cell.dataset.c);
+    cell.classList.remove('correct','wrong');
+    if(userGrid[r][c]){
+      if(userGrid[r][c]===ANSWER_GRID[r][c])cell.classList.add('correct');
+      else{cell.classList.add('wrong');allCorrect=false;}
+    } else allCorrect=false;
+  });
+  let filled=0,total=0;
+  for(let r=0;r<10;r++)for(let c=0;c<10;c++)if(ANSWER_GRID[r][c]!=='#'){total++;if(userGrid[r][c])filled++;}
+  if(allCorrect&&filled===total){document.getElementById('winMsg').classList.add('show');}
+}
+
+function revealAll(){
+  for(let r=0;r<10;r++)for(let c=0;c<10;c++)if(ANSWER_GRID[r][c]!=='#')userGrid[r][c]=ANSWER_GRID[r][c];
+  renderGrid();
+  renderClues();
+  updateProgress();
+  document.querySelectorAll('.cw-cell.white').forEach(c=>c.classList.add('correct'));
+  document.getElementById('winMsg').classList.add('show');
+}
+
+initPuzzle();
+</script>
+</body>
+</html>

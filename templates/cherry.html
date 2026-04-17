@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HI HO CHERRY-O · RETRO ARCADE</title>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323:wght@400&display=swap" rel="stylesheet">
+<style>
+:root{--nc:#ff5078;--neon-cyan:#00ffff;--neon-yellow:#ffff00;--neon-green:#00ff41;--dark:#0a0a0f;}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{background:var(--dark);font-family:'Press Start 2P',monospace;min-height:100vh;color:#fff;overflow-x:hidden;position:relative;display:flex;flex-direction:column;align-items:center;}
+body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(rgba(255,80,120,0.04) 1px,transparent 1px),linear-gradient(90deg,rgba(255,80,120,0.04) 1px,transparent 1px);background-size:35px 35px;animation:gs 22s linear infinite;}
+@keyframes gs{to{background-position:35px 35px;}}
+.scanlines{position:fixed;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.12) 2px,rgba(0,0,0,0.12) 4px);pointer-events:none;z-index:999;}
+.back-btn{position:fixed;top:20px;left:20px;z-index:100;font-family:'Press Start 2P',monospace;font-size:10px;color:var(--neon-cyan);text-decoration:none;padding:10px 15px;border:1px solid var(--neon-cyan);background:rgba(0,0,0,0.5);transition:all 0.2s;}
+.back-btn:hover{background:var(--neon-cyan);color:#000;}
+.container{max-width:860px;width:100%;margin:0 auto;padding:80px 20px 40px;position:relative;z-index:10;}
+h1{text-align:center;font-size:clamp(16px,3vw,28px);color:var(--nc);text-shadow:0 0 20px var(--nc);margin-bottom:8px;animation:flicker 4s infinite;}
+@keyframes flicker{0%,94%,100%{opacity:1}95%,97%{opacity:0.3}96%,98%{opacity:0.9}}
+.subtitle{font-family:'VT323',monospace;font-size:22px;color:rgba(255,255,255,0.4);text-align:center;margin-bottom:25px;}
+/* Spinner */
+.spinner-area{text-align:center;margin-bottom:25px;}
+.spinner-wrap{position:relative;width:200px;height:200px;margin:0 auto 15px;}
+canvas#spinCanvas{width:200px;height:200px;cursor:pointer;}
+.spin-result{font-family:'VT323',monospace;font-size:36px;min-height:44px;color:var(--neon-yellow);text-shadow:0 0 15px var(--neon-yellow);text-align:center;}
+/* Player boards */
+.boards{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:20px;}
+@media(max-width:600px){.boards{grid-template-columns:1fr;}}
+.player-board{background:rgba(255,80,120,0.05);border:2px solid rgba(255,80,120,0.3);padding:18px;position:relative;}
+.player-board.active{border-color:var(--neon-yellow);box-shadow:0 0 15px rgba(255,255,0,0.2);}
+.pb-name{font-size:9px;margin-bottom:12px;text-align:center;}
+.cherry-tree{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin-bottom:14px;}
+.cherry-spot{width:100%;aspect-ratio:1;border:1px solid rgba(255,80,120,0.25);border-radius:3px;display:flex;align-items:center;justify-content:center;font-size:clamp(16px,3vw,22px);transition:all 0.3s;background:rgba(0,0,0,0.3);}
+.cherry-spot.has-cherry{background:rgba(255,80,120,0.1);border-color:rgba(255,80,120,0.5);}
+.cherry-spot.has-cherry::after{content:'🍒';}
+.cherry-spot:not(.has-cherry)::after{content:'○';color:rgba(255,255,255,0.15);font-size:14px;}
+.bucket-row{display:flex;align-items:center;gap:8px;justify-content:center;margin-top:8px;}
+.bucket-label{font-size:8px;color:rgba(255,80,120,0.7);}
+.bucket-display{font-family:'VT323',monospace;font-size:32px;color:var(--nc);}
+.bucket-cherries{font-size:18px;letter-spacing:2px;min-height:26px;text-align:center;}
+.pb-count{font-family:'VT323',monospace;font-size:28px;text-align:center;color:var(--neon-yellow);}
+/* Bottom */
+.bottom-area{display:flex;gap:15px;justify-content:center;align-items:center;flex-wrap:wrap;}
+.spin-btn{font-family:'Press Start 2P',monospace;font-size:13px;padding:16px 32px;background:transparent;border:2px solid var(--nc);color:var(--nc);cursor:pointer;transition:all 0.2s;text-shadow:0 0 10px var(--nc);}
+.spin-btn:hover{background:var(--nc);color:#000;}
+.spin-btn:disabled{opacity:0.3;cursor:not-allowed;}
+.new-btn{font-family:'Press Start 2P',monospace;font-size:10px;padding:12px 18px;background:transparent;border:1px solid rgba(255,255,255,0.2);color:rgba(255,255,255,0.4);cursor:pointer;transition:all 0.2s;}
+.new-btn:hover{border-color:var(--neon-cyan);color:var(--neon-cyan);}
+.mode-btns{display:flex;gap:8px;justify-content:center;margin-bottom:20px;}
+.mode-btn{font-family:'Press Start 2P',monospace;font-size:9px;padding:8px 14px;background:transparent;cursor:pointer;transition:all 0.2s;border:1px solid rgba(255,255,255,0.2);color:rgba(255,255,255,0.4);}
+.mode-btn.active,.mode-btn:hover{border-color:var(--nc);color:var(--nc);}
+.turn-ind{font-family:'VT323',monospace;font-size:26px;color:var(--neon-yellow);animation:blink 1s step-end infinite;text-align:center;}
+@keyframes blink{50%{opacity:0;}}
+/* Win overlay */
+.win-overlay{display:none;position:fixed;inset:0;z-index:500;background:rgba(0,0,0,0.9);flex-direction:column;align-items:center;justify-content:center;gap:22px;font-family:'Press Start 2P',monospace;}
+.win-overlay.show{display:flex;}
+.win-title{font-size:clamp(20px,4vw,36px);color:var(--nc);text-shadow:0 0 30px var(--nc);text-align:center;}
+.win-sub{font-family:'VT323',monospace;font-size:32px;color:var(--neon-yellow);}
+</style>
+</head>
+<body>
+<div class="scanlines"></div>
+<a href="/" class="back-btn">◀ BACK</a>
+<div class="container">
+  <h1>🍒 HI HO! CHERRY-O</h1>
+  <div class="subtitle">Spin the wheel · Manage your cherries · Empty your tree to WIN!</div>
+
+  <div class="mode-btns">
+    <button class="mode-btn active" id="m2" onclick="setPlayers(2)">2 PLAYERS</button>
+    <button class="mode-btn" id="m3" onclick="setPlayers(3)">3 PLAYERS</button>
+    <button class="mode-btn" id="m4" onclick="setPlayers(4)">4 PLAYERS</button>
+  </div>
+
+  <div class="spinner-area">
+    <div class="spinner-wrap"><canvas id="spinCanvas" width="200" height="200"></canvas></div>
+    <div class="spin-result" id="spinResult">PRESS SPIN!</div>
+  </div>
+
+  <div class="turn-ind" id="turnInd">▶ PLAYER 1'S TURN</div>
+
+  <div class="boards" id="boards"></div>
+
+  <div class="bottom-area">
+    <button class="spin-btn" id="spinBtn" onclick="doSpin()">🍒 SPIN!</button>
+    <button class="new-btn" onclick="initGame()">↺ NEW GAME</button>
+  </div>
+</div>
+
+<div class="win-overlay" id="winOverlay">
+  <div class="win-title" id="winTitle">🎉</div>
+  <div class="win-sub">EMPTIED THE TREE!</div>
+  <button class="spin-btn" onclick="initGame();document.getElementById('winOverlay').classList.remove('show')">PLAY AGAIN</button>
+  <a href="/" style="font-family:'VT323',monospace;font-size:22px;color:rgba(255,255,255,0.4);text-decoration:none;">MAIN MENU</a>
+</div>
+
+<script>
+// Spinner segments
+const SEGMENTS=[
+  {label:'Pick 1',icon:'🍒',value:1,color:'rgba(255,80,120,0.8)',action:'pick'},
+  {label:'Pick 2',icon:'🍒🍒',value:2,color:'rgba(255,100,150,0.8)',action:'pick'},
+  {label:'Pick 3',icon:'🍒🍒🍒',value:3,color:'rgba(255,60,100,0.8)',action:'pick'},
+  {label:'Pick 4',icon:'🍒x4',value:4,color:'rgba(255,40,90,0.8)',action:'pick'},
+  {label:'Dog 🐕',icon:'🐕',value:2,color:'rgba(150,100,255,0.8)',action:'put_back'},
+  {label:'Bird 🐦',icon:'🐦',value:2,color:'rgba(100,200,255,0.8)',action:'put_back'},
+  {label:'Spill! 💧',icon:'💧',value:0,color:'rgba(100,150,255,0.8)',action:'spill'},
+];
+const TOTAL=10;// cherries on tree
+const P_COLORS=['#ff5078','#6ec7ff','#00ff41','#ffff00'];
+const P_NAMES=['PLAYER 1','PLAYER 2','PLAYER 3','PLAYER 4'];
+
+let numPlayers=2, currentPlayer=0, players=[], spinning=false;
+let spinAngle=0, spinVel=0, spinTarget=0, animating=false, pendingResult=null;
+
+const SC=document.getElementById('spinCanvas'),sCtx=SC.getContext('2d');
+const SEG_COUNT=SEGMENTS.length,SEG_ANGLE=(Math.PI*2)/SEG_COUNT;
+
+function setPlayers(n){
+  numPlayers=n;
+  ['m2','m3','m4'].forEach(id=>document.getElementById(id).classList.remove('active'));
+  document.getElementById('m'+n).classList.add('active');
+  initGame();
+}
+
+function initGame(){
+  players=Array.from({length:numPlayers},(_,i)=>({name:P_NAMES[i],color:P_COLORS[i],tree:TOTAL,bucket:0}));
+  currentPlayer=0;spinning=false;animating=false;pendingResult=null;spinAngle=0;spinVel=0;
+  document.getElementById('spinResult').textContent='PRESS SPIN!';
+  document.getElementById('winOverlay').classList.remove('show');
+  document.getElementById('spinBtn').disabled=false;
+  renderBoards();
+  updateTurn();
+  drawSpinner();
+}
+
+function renderBoards(){
+  const el=document.getElementById('boards');
+  el.style.gridTemplateColumns=numPlayers<=2?'1fr 1fr':numPlayers===3?'1fr 1fr 1fr':'1fr 1fr 1fr 1fr';
+  el.innerHTML='';
+  players.forEach((p,i)=>{
+    const div=document.createElement('div');
+    div.className='player-board'+(i===currentPlayer?' active':'');
+    div.id=`pb${i}`;
+    const cherries=Array.from({length:TOTAL},(_,j)=>`<div class="cherry-spot ${j<p.tree?'has-cherry':''}"></div>`).join('');
+    div.innerHTML=`<div class="pb-name" style="color:${p.color}">${p.name}</div>
+      <div class="cherry-tree">${cherries}</div>
+      <div class="pb-count">${p.tree} ON TREE</div>
+      <div class="bucket-row"><span class="bucket-label">BUCKET:</span><span class="bucket-display">${p.bucket}</span></div>`;
+    el.appendChild(div);
+  });
+}
+
+function updateTurn(){
+  document.getElementById('turnInd').textContent=`▶ ${players[currentPlayer].name}'S TURN`;
+  document.querySelectorAll('.player-board').forEach((el,i)=>{
+    el.className='player-board'+(i===currentPlayer?' active':'');
+  });
+}
+
+function drawSpinner(highlight=-1){
+  sCtx.clearRect(0,0,200,200);
+  const cx=100,cy=100,r=88;
+  for(let i=0;i<SEG_COUNT;i++){
+    const start=spinAngle+i*SEG_ANGLE,end=start+SEG_ANGLE;
+    sCtx.beginPath();sCtx.moveTo(cx,cy);sCtx.arc(cx,cy,r,start,end);sCtx.closePath();
+    sCtx.fillStyle=SEGMENTS[i].color;sCtx.fill();
+    sCtx.strokeStyle='rgba(0,0,0,0.4)';sCtx.lineWidth=2;sCtx.stroke();
+    // Label
+    const mid=start+SEG_ANGLE/2;
+    sCtx.save();sCtx.translate(cx,cy);sCtx.rotate(mid);
+    sCtx.font=`bold 9px "Press Start 2P"`;sCtx.fillStyle='#fff';sCtx.textAlign='center';sCtx.textBaseline='middle';
+    sCtx.fillText(SEGMENTS[i].label,r*0.62,0);
+    sCtx.restore();
+  }
+  // Pointer (top)
+  sCtx.beginPath();sCtx.moveTo(cx-8,8);sCtx.lineTo(cx+8,8);sCtx.lineTo(cx,26);sCtx.closePath();
+  sCtx.fillStyle='#ffff00';sCtx.shadowBlur=8;sCtx.shadowColor='#ffff00';sCtx.fill();sCtx.shadowBlur=0;
+  // Center
+  sCtx.beginPath();sCtx.arc(cx,cy,10,0,Math.PI*2);sCtx.fillStyle='#0a0a0f';sCtx.strokeStyle='rgba(255,255,255,0.3)';sCtx.lineWidth=2;sCtx.fill();sCtx.stroke();
+}
+
+function getSpinnerResult(){
+  // Normalize angle, pointer at top = -PI/2
+  const norm=((-spinAngle%(Math.PI*2))+(Math.PI*2))%(Math.PI*2);
+  // Pointer at top is at angle PI/2 from positive x axis (spinner direction is from angle 0 going clockwise)
+  // Segment i spans [i*SEG_ANGLE, (i+1)*SEG_ANGLE] 
+  // We need to find which segment is at the top
+  const topAngle=(Math.PI/2); // top of circle in standard coords
+  // Adjust: since we add spinAngle to segment start angles, segment i starts at spinAngle + i*SEG_ANGLE
+  // Pointer is at angle -PI/2 (top), so we need spinAngle + i*SEG_ANGLE <= -PI/2 mod 2PI <= spinAngle + (i+1)*SEG_ANGLE
+  const ptr=(((-Math.PI/2)-spinAngle)%(Math.PI*2)+(Math.PI*2))%(Math.PI*2);
+  const idx=Math.floor(ptr/SEG_ANGLE)%SEG_COUNT;
+  return SEGMENTS[idx];
+}
+
+function doSpin(){
+  if(animating)return;
+  animating=true;
+  spinning=true;
+  document.getElementById('spinBtn').disabled=true;
+  spinVel=0.25+Math.random()*0.25;
+  const totalRot=(Math.PI*2)*(5+Math.random()*5);
+  const targetAngle=spinAngle+totalRot;
+  let vel=spinVel;
+  function animate(){
+    spinAngle+=vel;
+    vel*=0.985;
+    drawSpinner();
+    if(vel>0.008){requestAnimationFrame(animate);}
+    else{
+      animating=false;spinning=false;
+      const result=getSpinnerResult();
+      applyResult(result);
+    }
+  }
+  requestAnimationFrame(animate);
+}
+
+function applyResult(seg){
+  const p=players[currentPlayer];
+  let msg='';
+  const resultEl=document.getElementById('spinResult');
+  if(seg.action==='pick'){
+    const pick=Math.min(seg.value,p.tree);
+    p.tree-=pick;p.bucket+=pick;
+    msg=`${seg.icon} PICKED ${pick} CHERRIES!`;
+    resultEl.style.color='#00ff41';
+  } else if(seg.action==='put_back'){
+    const putBack=Math.min(seg.value,p.bucket);
+    const toTree=Math.min(putBack,TOTAL-p.tree);
+    p.tree+=toTree;p.bucket=Math.max(0,p.bucket-putBack);
+    msg=`${seg.icon} PUT BACK ${putBack}!`;
+    resultEl.style.color='#ff5078';
+  } else if(seg.action==='spill'){
+    const spill=p.bucket;
+    p.tree=Math.min(TOTAL,p.tree+spill);p.bucket=0;
+    msg=`${seg.icon} SPILLED! PUT BACK ALL ${spill}!`;
+    resultEl.style.color='#6ec7ff';
+  }
+  resultEl.textContent=msg;
+  renderBoards();
+  // Check win: tree empty
+  if(p.tree<=0){
+    setTimeout(()=>{
+      document.getElementById('winTitle').textContent=`🎉 ${p.name} WINS!`;
+      document.getElementById('winTitle').style.color=p.color;
+      document.getElementById('winOverlay').classList.add('show');
+    },600);
+    return;
+  }
+  setTimeout(()=>{
+    currentPlayer=(currentPlayer+1)%numPlayers;
+    updateTurn();
+    document.getElementById('spinBtn').disabled=false;
+  },1000);
+}
+
+SC.onclick=()=>{if(!animating)doSpin();};
+initGame();
+</script>
+</body>
+</html>

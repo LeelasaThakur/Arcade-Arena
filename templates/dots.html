@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DOTS & BOXES · RETRO ARCADE</title>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323:wght@400&display=swap" rel="stylesheet">
+<style>
+:root{--nd:#00ffb4;--neon-cyan:#00ffff;--neon-yellow:#ffff00;--dark:#0a0a0f;}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{background:var(--dark);font-family:'Press Start 2P',monospace;min-height:100vh;color:#fff;overflow-x:hidden;position:relative;}
+body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(rgba(0,255,180,0.04) 1px,transparent 1px),linear-gradient(90deg,rgba(0,255,180,0.04) 1px,transparent 1px);background-size:35px 35px;animation:gs 20s linear infinite;}
+@keyframes gs{to{background-position:35px 35px;}}
+.scanlines{position:fixed;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.12) 2px,rgba(0,0,0,0.12) 4px);pointer-events:none;z-index:999;}
+.back-btn{position:fixed;top:20px;left:20px;z-index:100;font-family:'Press Start 2P',monospace;font-size:10px;color:var(--neon-cyan);text-decoration:none;padding:10px 15px;border:1px solid var(--neon-cyan);background:rgba(0,0,0,0.5);transition:all 0.2s;}
+.back-btn:hover{background:var(--neon-cyan);color:#000;}
+.container{max-width:860px;margin:0 auto;padding:80px 20px 40px;position:relative;z-index:10;}
+h1{text-align:center;font-size:clamp(18px,3.5vw,30px);color:var(--nd);text-shadow:0 0 20px var(--nd);margin-bottom:20px;animation:flicker 4s infinite;}
+@keyframes flicker{0%,94%,100%{opacity:1}95%,97%{opacity:0.3}96%,98%{opacity:0.9}}
+.layout{display:grid;grid-template-columns:1fr 220px;gap:20px;align-items:start;}
+@media(max-width:650px){.layout{grid-template-columns:1fr;}}
+canvas#dotsCanvas{width:100%;max-width:520px;display:block;cursor:pointer;image-rendering:pixelated;}
+.controls{background:rgba(0,255,180,0.05);border:2px solid rgba(0,255,180,0.3);padding:18px;display:flex;flex-direction:column;gap:14px;}
+.score-card{padding:12px;border:1px solid rgba(255,255,255,0.1);text-align:center;}
+.score-card.active{border-color:var(--neon-yellow);box-shadow:0 0 10px rgba(255,255,0,0.2);}
+.sc-name{font-size:8px;margin-bottom:6px;}
+.sc-val{font-family:'VT323',monospace;font-size:42px;}
+.turn-ind{font-family:'VT323',monospace;font-size:22px;text-align:center;color:var(--neon-yellow);animation:blink 1s step-end infinite;}
+@keyframes blink{50%{opacity:0;}}
+.status-msg{font-family:'VT323',monospace;font-size:20px;text-align:center;padding:8px;min-height:50px;display:flex;align-items:center;justify-content:center;border:1px solid rgba(255,255,255,0.1);}
+.new-btn{font-family:'Press Start 2P',monospace;font-size:10px;padding:12px;background:transparent;border:2px solid var(--nd);color:var(--nd);cursor:pointer;width:100%;transition:all 0.2s;}
+.new-btn:hover{background:var(--nd);color:#000;}
+.size-btns{display:flex;gap:6px;}
+.size-btn{font-family:'Press Start 2P',monospace;font-size:8px;padding:8px;background:transparent;border:1px solid rgba(255,255,255,0.2);color:rgba(255,255,255,0.4);cursor:pointer;flex:1;transition:all 0.2s;}
+.size-btn.active,.size-btn:hover{border-color:var(--nd);color:var(--nd);}
+.win-overlay{display:none;position:fixed;inset:0;z-index:500;background:rgba(0,0,0,0.88);flex-direction:column;align-items:center;justify-content:center;gap:20px;font-family:'Press Start 2P',monospace;}
+.win-overlay.show{display:flex;}
+.win-text{font-size:26px;text-align:center;color:var(--nd);text-shadow:0 0 30px var(--nd);}
+.win-scores{font-family:'VT323',monospace;font-size:32px;color:var(--neon-yellow);}
+</style>
+</head>
+<body>
+<div class="scanlines"></div>
+<a href="/" class="back-btn">◀ BACK</a>
+<div class="container">
+  <h1>🔵 DOTS & BOXES</h1>
+  <div class="layout">
+    <canvas id="dotsCanvas" width="500" height="500"></canvas>
+    <div class="controls">
+      <div style="font-size:8px;color:rgba(0,255,180,0.5);text-align:center">GRID SIZE</div>
+      <div class="size-btns">
+        <button class="size-btn active" onclick="setSize(4)" id="s4">4×4</button>
+        <button class="size-btn" onclick="setSize(5)" id="s5">5×5</button>
+        <button class="size-btn" onclick="setSize(6)" id="s6">6×6</button>
+      </div>
+      <div class="score-card active" id="sc0"><div class="sc-name" style="color:#ff6ec7">PLAYER 1</div><div class="sc-val" style="color:#ff6ec7" id="sv0">0</div></div>
+      <div class="score-card" id="sc1"><div class="sc-name" style="color:#6ec7ff">PLAYER 2</div><div class="sc-val" style="color:#6ec7ff" id="sv1">0</div></div>
+      <div class="turn-ind" id="turnInd">▶ P1 TURN</div>
+      <div class="status-msg" id="statusMsg">CLICK A LINE!</div>
+      <button class="new-btn" onclick="initGame()">▶ NEW GAME</button>
+    </div>
+  </div>
+</div>
+<div class="win-overlay" id="winOverlay">
+  <div class="win-text" id="winText">GAME OVER!</div>
+  <div class="win-scores" id="winScores"></div>
+  <button class="new-btn" style="max-width:240px" onclick="initGame();document.getElementById('winOverlay').classList.remove('show')">PLAY AGAIN</button>
+</div>
+<script>
+const C=document.getElementById('dotsCanvas'),ctx=C.getContext('2d');
+const P_COLORS=['#ff6ec7','#6ec7ff'];
+const BOX_COLORS=['rgba(255,110,199,0.25)','rgba(108,199,255,0.25)'];
+let N=4,dots,hLines,vLines,boxes,currentPlayer,scores;
+let hoveredLine=null;
+
+function setSize(n){N=n;['s4','s5','s6'].forEach(id=>document.getElementById(id).classList.remove('active'));document.getElementById('s'+n).classList.add('active');initGame();}
+
+function initGame(){
+  dots=[];hLines=[];vLines=[];boxes=[];scores=[0,0];currentPlayer=0;hoveredLine=null;
+  for(let r=0;r<=N;r++){hLines.push([]);vLines.push([]);if(r<N)boxes.push([]);for(let c=0;c<=N;c++){dots.push({r,c});if(c<N){hLines[r].push(null);if(r<N)boxes[r].push(null);}if(r<N)vLines[r].push(null);}}
+  updateUI();draw();
+  document.getElementById('winOverlay').classList.remove('show');
+}
+
+const M=40,DOT_R=5;
+function cellSize(){return(C.width-M*2)/N;}
+
+function dotXY(r,c){const cs=cellSize();return{x:M+c*cs,y:M+r*cs};}
+
+function draw(){
+  ctx.clearRect(0,0,C.width,C.height);
+  const cs=cellSize();
+  // Filled boxes
+  for(let r=0;r<N;r++)for(let c=0;c<N;c++){const owner=boxes[r][c];if(owner!==null){const{x:x1,y:y1}=dotXY(r,c);ctx.fillStyle=BOX_COLORS[owner];ctx.fillRect(x1+1,y1+1,cs-2,cs-2);ctx.fillStyle=P_COLORS[owner];ctx.font=`bold ${cs*0.28}px "Press Start 2P"`;ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(owner===0?'1':'2',x1+cs/2,y1+cs/2);}}
+  // Horizontal lines
+  for(let r=0;r<=N;r++)for(let c=0;c<N;c++){const{x,y}=dotXY(r,c);const owner=hLines[r][c];const isHov=hoveredLine&&hoveredLine.type==='h'&&hoveredLine.r===r&&hoveredLine.c===c;ctx.beginPath();ctx.moveTo(x+DOT_R,y);ctx.lineTo(x+cs-DOT_R,y);ctx.strokeStyle=owner!==null?P_COLORS[owner]:isHov?'rgba(0,255,180,0.8)':'rgba(255,255,255,0.12)';ctx.lineWidth=owner!==null?4:isHov?3:1.5;ctx.shadowBlur=owner!==null?8:isHov?6:0;ctx.shadowColor=owner!==null?P_COLORS[owner]:'rgba(0,255,180,0.8)';ctx.stroke();ctx.shadowBlur=0;}
+  // Vertical lines
+  for(let r=0;r<N;r++)for(let c=0;c<=N;c++){const{x,y}=dotXY(r,c);const owner=vLines[r][c];const isHov=hoveredLine&&hoveredLine.type==='v'&&hoveredLine.r===r&&hoveredLine.c===c;ctx.beginPath();ctx.moveTo(x,y+DOT_R);ctx.lineTo(x,y+cs-DOT_R);ctx.strokeStyle=owner!==null?P_COLORS[owner]:isHov?'rgba(0,255,180,0.8)':'rgba(255,255,255,0.12)';ctx.lineWidth=owner!==null?4:isHov?3:1.5;ctx.shadowBlur=owner!==null?8:isHov?6:0;ctx.shadowColor=owner!==null?P_COLORS[owner]:'rgba(0,255,180,0.8)';ctx.stroke();ctx.shadowBlur=0;}
+  // Dots
+  for(let r=0;r<=N;r++)for(let c=0;c<=N;c++){const{x,y}=dotXY(r,c);ctx.beginPath();ctx.arc(x,y,DOT_R,0,Math.PI*2);ctx.fillStyle='#00ffb4';ctx.shadowBlur=8;ctx.shadowColor='#00ffb4';ctx.fill();ctx.shadowBlur=0;}
+}
+
+function getLineFromXY(mx,my){
+  const cs=cellSize(),THRESH=cs*0.25;
+  // Check horizontal lines
+  for(let r=0;r<=N;r++)for(let c=0;c<N;c++){if(hLines[r][c]!==null)continue;const{x,y}=dotXY(r,c);const cx=x+cs/2;if(Math.abs(my-y)<THRESH&&mx>x&&mx<x+cs)return{type:'h',r,c};}
+  // Check vertical lines
+  for(let r=0;r<N;r++)for(let c=0;c<=N;c++){if(vLines[r][c]!==null)continue;const{x,y}=dotXY(r,c);const cy=y+cs/2;if(Math.abs(mx-x)<THRESH&&my>y&&my<y+cs)return{type:'v',r,c};}
+  return null;
+}
+
+C.addEventListener('mousemove',e=>{const rect=C.getBoundingClientRect();const mx=(e.clientX-rect.left)*(C.width/rect.width),my=(e.clientY-rect.top)*(C.height/rect.height);hoveredLine=getLineFromXY(mx,my);draw();});
+C.addEventListener('mouseleave',()=>{hoveredLine=null;draw();});
+C.addEventListener('click',e=>{const rect=C.getBoundingClientRect();const mx=(e.clientX-rect.left)*(C.width/rect.width),my=(e.clientY-rect.top)*(C.height/rect.height);const line=getLineFromXY(mx,my);if(line)placeLine(line.type,line.r,line.c);});
+C.addEventListener('touchstart',e=>{e.preventDefault();const rect=C.getBoundingClientRect();const mx=(e.touches[0].clientX-rect.left)*(C.width/rect.width),my=(e.touches[0].clientY-rect.top)*(C.height/rect.height);const line=getLineFromXY(mx,my);if(line)placeLine(line.type,line.r,line.c);},{passive:false});
+
+function placeLine(type,r,c){
+  if(type==='h'){if(hLines[r][c]!==null)return;hLines[r][c]=currentPlayer;}
+  else{if(vLines[r][c]!==null)return;vLines[r][c]=currentPlayer;}
+  let boxClosed=false;
+  // Check completed boxes
+  for(let br=0;br<N;br++)for(let bc=0;bc<N;bc++){if(boxes[br][bc]===null){const top=hLines[br][bc]!==null,bot=hLines[br+1]&&hLines[br+1][bc]!==null,left=vLines[br][bc]!==null,right=vLines[br][bc+1]!==null;if(top&&bot&&left&&right){boxes[br][bc]=currentPlayer;scores[currentPlayer]++;boxClosed=true;}}}
+  updateUI();draw();
+  const total=scores[0]+scores[1];
+  if(total===N*N){endGame();return;}
+  if(!boxClosed)currentPlayer=1-currentPlayer;
+  updateUI();
+}
+
+function updateUI(){
+  [0,1].forEach(p=>{document.getElementById(`sv${p}`).textContent=scores[p];document.getElementById(`sc${p}`).className='score-card'+(p===currentPlayer?' active':'');});
+  document.getElementById('turnInd').textContent=`▶ P${currentPlayer+1} TURN`;
+  document.getElementById('statusMsg').textContent=`CLICK A LINE TO DRAW`;
+  document.getElementById('statusMsg').style.color=P_COLORS[currentPlayer];
+}
+
+function endGame(){
+  let wt;
+  if(scores[0]>scores[1])wt='🎉 PLAYER 1 WINS!';
+  else if(scores[1]>scores[0])wt='🎉 PLAYER 2 WINS!';
+  else wt="🤝 IT'S A DRAW!";
+  document.getElementById('winText').textContent=wt;
+  document.getElementById('winScores').textContent=`P1: ${scores[0]}  P2: ${scores[1]}`;
+  document.getElementById('winOverlay').classList.add('show');
+}
+
+initGame();
+</script>
+</body>
+</html>
